@@ -10,27 +10,38 @@
 
 問題生成と採点は共通のRustライブラリにあります。Web版はWebAssemblyとブラウザ標準のHTML・CSS・JavaScript、Windows版はWin32 APIで画面を作っています。
 
-## Cloudflare Pages
-
-PagesのGit連携でこのリポジトリを選択し、以下の値を設定します。
-
-| 設定 | 値 |
-| --- | --- |
-| フレームワーク プリセット | なし |
-| ビルド コマンド | `bash scripts/build-web.sh` |
-| ビルド出力ディレクトリ | `dist` |
-
-ローカルでビルドした `dist/` を、Pagesのダイレクトアップロードで公開することもできます。
-静的なファイル配信だけで動作します。
-
 ## Web版のローカル実行
+
+Node.jsとnpmが使える環境で、WebAssemblyをビルドしてWranglerでプレビューします。
 
 ```sh
 bash scripts/build-web.sh
-python3 -m http.server 8000 --directory dist
+npx --yes wrangler@4 pages dev
 ```
 
-ブラウザで [http://localhost:8000](http://localhost:8000) を開きます。
+ブラウザで [http://localhost:8788](http://localhost:8788) を開きます。
+
+## Cloudflare Pagesへの公開
+
+Wranglerは `wrangler.toml` のプロジェクト名 `100math` と出力先 `dist/` を使用します。
+静的ファイルの配信だけで動作します。
+
+Cloudflareにログインし、初回のみPagesプロジェクトを作成します。
+
+```sh
+npx --yes wrangler@4 login
+npx --yes wrangler@4 pages project create 100math --production-branch master
+```
+
+本番に公開するときは、次のコマンドを実行します。
+
+```sh
+bash scripts/build-web.sh
+npx --yes wrangler@4 pages deploy --branch master
+```
+
+すでに同じ名前のPagesプロジェクトがある場合は、プロジェクト作成を省略できます。
+別の名前を使う場合は `wrangler.toml` の `name` を変更してください。
 
 ## Windows版のビルド
 
