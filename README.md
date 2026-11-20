@@ -29,15 +29,27 @@ Web版は同じサイトを開いたブラウザに、Windows版は現在のWind
 Node.jsとnpmが使える環境で、WebAssemblyをビルドしてWranglerでプレビューします。
 
 ```sh
-bash scripts/build-web.sh
-npx --yes wrangler@4 pages dev
+npx --yes wrangler@4 dev
 ```
 
-ブラウザで [http://localhost:8788](http://localhost:8788) を開きます。
+ブラウザで [http://localhost:8787](http://localhost:8787) を開きます。
+
+## Cloudflare Workersの静的アセットとして公開
+
+CloudflareのWorkers Buildsでこのリポジトリを接続する場合は、ビルドコマンド欄を空にし、
+デプロイコマンドを `npx wrangler deploy` に設定します。
+Wranglerが `wrangler.toml` のビルドコマンドを実行し、生成した `dist/` を配信します。
+
+手元から公開する場合も、Cloudflareにログインして同じコマンドを実行できます。
+
+```sh
+npx --yes wrangler@4 login
+npx --yes wrangler@4 deploy
+```
 
 ## Cloudflare Pagesへの公開
 
-Wranglerは `wrangler.toml` のプロジェクト名 `100math` と出力先 `dist/` を使用します。
+Pages用のWrangler設定 `cloudflare/pages/wrangler.toml` にはプロジェクト名 `100math` と出力先 `dist/` が設定されています。
 静的ファイルの配信だけで動作します。
 
 Cloudflareにログインし、初回のみPagesプロジェクトを作成します。
@@ -51,11 +63,11 @@ npx --yes wrangler@4 pages project create 100math --production-branch master
 
 ```sh
 bash scripts/build-web.sh
-npx --yes wrangler@4 pages deploy --branch master
+(cd cloudflare/pages && npx --yes wrangler@4 pages deploy --branch master)
 ```
 
 すでに同じ名前のPagesプロジェクトがある場合は、プロジェクト作成を省略できます。
-別の名前を使う場合は `wrangler.toml` の `name` を変更してください。
+別の名前を使う場合は `cloudflare/pages/wrangler.toml` の `name` を変更してください。
 
 ## Windows版のビルド
 
