@@ -69,7 +69,7 @@ button:disabled { opacity: .55; cursor: default; }
 .life { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
 .life label { display: flex; justify-content: space-between; gap: 4px; font-weight: 700; font-size: .875rem; }
 .life progress { display: block; width: 100%; height: 14px; accent-color: var(--green); }
-#opponent-hp { accent-color: #bd593b; }
+#opponent-progress { accent-color: #bd593b; }
 .duel { display: flex; gap: 12px; align-items: start; padding: 9px; background: #f7f1e2; border-radius: 10px; margin-bottom: 10px; }
 #opponent-portrait { flex: 0 0 clamp(54px, 9vw, 90px); }
 .turn { flex: 1; min-width: 0; }
@@ -144,3 +144,16 @@ button:disabled { opacity: .55; cursor: default; }
 #battle-grid .axis-active { background: #f6dfa4; color: #5d400a; }
 #battle-grid .line-complete { background: #176452; color: white; }
 #battle-grid .current { background: #fff0bf; }
+
+.portrait[data-mood="worried"] { background-image: url("./opponents-worried.webp"); }
+.portrait[data-mood="laugh"] { background-image: url("./opponents-laugh.webp"); }
+#race-time { font-variant-numeric: tabular-nums; font-weight: 700; margin-left: auto; }
+#expression { color: #804b17; font-weight: 700; }
+#race-cutin { max-width: min(92vw, 510px); border: 3px solid #e6bd62; padding: 0; border-radius: 18px; background: #fff3d6; color: #133e33; }
+#race-cutin[open] { display: flex; gap: 16px; align-items: center; padding: clamp(10px, 4vw, 24px); animation: cutin-in .25s ease-out both; }
+#race-cutin::backdrop { background: #15382bc9; }
+#cutin-portrait { width: clamp(66px, 24vw, 150px); flex-shrink: 0; }
+.cutin-message h2 { font-size: clamp(1.2rem, 5vw, 2rem); line-height: 1.2; margin: 0; }
+.cutin-message p { margin: 5px 0 10px; }
+@keyframes cutin-in { from { opacity: 0; transform: translateX(-30px) scale(.94); } }
+@media (prefers-reduced-motion: reduce) { #race-cutin[open] { animation: none; } }

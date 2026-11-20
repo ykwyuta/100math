@@ -28,7 +28,7 @@
       </div>
       <div class="start-content">
         <h2 id="start-title">計算バトルへ<br>ようこそ！</h2>
-        <p>100マスを解いて連鎖で攻撃。勝つたびに数学者のコインが集まるよ。</p>
+        <p>相手より先に100マスを埋めよう。勝つたびに数学者のコインが集まるよ。</p>
         <div class="start-actions">
           <button id="start-play" type="button" disabled>対戦をはじめる</button>
           <button id="start-practice" type="button" disabled>れんしゅう</button>
@@ -57,28 +57,36 @@
           </div>
           <p id="battle-points" class="battle-points"></p>
           <div class="life">
-            <div><label for="player-hp">あなた <span id="player-hp-text"></span></label><progress id="player-hp" max="36" value="36"></progress></div>
-            <div><label for="opponent-hp"><span id="opponent-name">ミジンコ</span> <span id="opponent-hp-text"></span></label><progress id="opponent-hp" max="22" value="22"></progress></div>
+            <div><label for="player-progress">あなた <span id="player-progress-text"></span></label><progress id="player-progress" max="100" value="0"></progress></div>
+            <div><label for="opponent-progress"><span id="opponent-name">ミジンコ</span> <span id="opponent-progress-text"></span></label><progress id="opponent-progress" max="100" value="0"></progress></div>
           </div>
           <div class="duel">
             <div id="opponent-portrait" class="portrait" aria-hidden="true"></div>
             <div class="turn">
-              <div class="round-stats"><span><strong id="combo">0</strong> 連鎖</span><span id="countdown"></span></div>
+              <div class="round-stats"><span id="expression" aria-hidden="true"></span><time id="race-time">00:00</time></div>
               <p id="question">読み込み中…</p>
               <form id="answer-form">
                 <input id="battle-answer" aria-label="答え" maxlength="5" autocomplete="off" disabled>
-                <button type="submit" disabled>攻撃</button>
+                <button type="submit" disabled>答える</button>
               </form>
               <p id="battle-note" role="status"></p>
             </div>
           </div>
           <div class="board-legend">
             <span id="board-progress">0 / 100 マス</span>
-            <span id="board-rules">隣のマスで連鎖、たて・よこ10マスでボーナス</span>
+            <span id="board-rules">マスを選んで答えよう。先に100マスで勝ち！</span>
           </div>
           <table aria-describedby="board-rules" id="battle-grid" aria-label="対戦中の100マス計算表"></table>
         </section>
       </div>
+      <dialog id="race-cutin" aria-labelledby="cutin-title" aria-describedby="cutin-detail">
+        <div id="cutin-portrait" class="portrait" aria-hidden="true"></div>
+        <div class="cutin-message">
+          <h2 id="cutin-title"></h2>
+          <p id="cutin-detail"></p>
+          <button id="cutin-close" type="button">つづける</button>
+        </div>
+      </dialog>
     </section>
 
     <section id="collection-panel" class="collection" hidden aria-labelledby="collection-title">

@@ -15,18 +15,29 @@ export function setupBattle(wasm, grantReward) {
   const form = document.querySelector("#answer-form");
   const input = document.querySelector("#battle-answer");
   const note = document.querySelector("#battle-note");
-  const playerHp = document.querySelector("#player-hp");
-  const opponentHp = document.querySelector("#opponent-hp");
-  const combo = document.querySelector("#combo");
+  const playerProgress = document.querySelector("#player-progress");
+  const opponentProgress = document.querySelector("#opponent-progress");
+  const playerText = document.querySelector("#player-progress-text");
+  const opponentText = document.querySelector("#opponent-progress-text");
   const progress = document.querySelector("#board-progress");
-  const countdown = document.querySelector("#countdown");
+  const raceTime = document.querySelector("#race-time");
+  const expression = document.querySelector("#expression");
+  const cutin = document.querySelector("#race-cutin");
+  const cutinPortrait = document.querySelector("#cutin-portrait");
+  const cutinTitle = document.querySelector("#cutin-title");
+  const cutinDetail = document.querySelector("#cutin-detail");
+  const cutinClose = document.querySelector("#cutin-close");
 
   let opponent = 0;
   let rows, cols, roundOperation, squares, started, timer, seed;
-  let attacks = 0;
-  let highlighted;
-  let rowHeaders, colHeaders;
+  let highlighted, rowHeaders, colHeaders;
+  let cutinTimer, afterCutin, reactionUntil, opponentLines;
   const elapsed = () => Math.floor(performance.now() - started);
+  const value = field => wasm.battle_value(field);
+  const formatTime = ms => {
+    const seconds = Math.floor(ms / 1000);
+    return [Math.floor(seconds / 60), seconds % 60].map(part => String(part).padStart(2, "0")).join(":");
+  };
   const enableAnswer = enabled => {
     input.disabled = !enabled;
     form.querySelector("button").disabled = !enabled;
@@ -48,14 +59,53 @@ export function setupBattle(wasm, grantReward) {
     roster.append(button);
   });
 
+  function setPortrait(element, mood = "") {
+    element.style.setProperty("--col", opponent % 4);
+    element.style.setProperty("--row", Math.floor(opponent / 4));
+    element.dataset.mood = mood;
+  }
+
   function selectOpponent() {
     [...roster.children].forEach((button, index) => {
       button.setAttribute("aria-pressed", index === opponent);
     });
-    portrait.style.setProperty("--col", opponent % 4);
-    portrait.style.setProperty("--row", Math.floor(opponent / 4));
+    setPortrait(portrait);
     opponentName.textContent = names[opponent];
   }
+
+  function react(mood, text, duration = 2200) {
+    setPortrait(portrait, mood);
+    expression.textContent = text;
+    reactionUntil = performance.now() + duration;
+  }
+
+  function clearCutin() {
+    clearTimeout(cutinTimer);
+    afterCutin = undefined;
+    if (cutin.open) cutin.close();
+  }
+
+  function finishCutin() {
+    const next = afterCutin;
+    clearCutin();
+    next?.();
+  }
+
+  function showCutin(title, detail, mood, duration, next) {
+    clearCutin();
+    setPortrait(cutinPortrait, mood);
+    cutinTitle.textContent = title;
+    cutinDetail.textContent = detail;
+    afterCutin = next;
+    cutin.showModal();
+    cutinTimer = setTimeout(finishCutin, duration);
+  }
+
+  cutinClose.addEventListener("click", finishCutin);
+  cutin.addEventListener("cancel", event => {
+    event.preventDefault();
+    finishCutin();
+  });
 
   const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 
@@ -124,7 +174,7 @@ export function setupBattle(wasm, grantReward) {
     if (!Object.hasOwn(directions, event.key)) return;
     event.preventDefault();
     if (!wasm.battle_move(...directions[event.key])) return;
-    const next = wasm.battle_value(4, elapsed());
+    const next = value(2);
     highlight(next);
     input.value = "";
     if (event.currentTarget === grid) squares[next].firstElementChild.focus();
@@ -132,45 +182,60 @@ export function setupBattle(wasm, grantReward) {
   grid.addEventListener("keydown", moveCell);
   input.addEventListener("keydown", moveCell);
 
+  function setProgress(player, cpu) {
+    playerProgress.value = player;
+    opponentProgress.value = cpu;
+    playerText.textContent = `${player} / 100`;
+    opponentText.textContent = `${cpu} / 100`;
+    progress.textContent = `${player} / 100 マス`;
+  }
+
   function refresh() {
     const now = elapsed();
     wasm.battle_tick(now);
-    const value = field => wasm.battle_value(field, now);
-    playerHp.value = value(0);
-    document.querySelector("#player-hp-text").textContent = `${value(0)} / 36`;
-    opponentHp.max = value(2);
-    opponentHp.value = value(1);
-    document.querySelector("#opponent-hp-text").textContent = `${value(1)} / ${value(2)}`;
-    combo.textContent = value(3);
-    const current = value(4);
-    const status = value(6);
-    progress.textContent = `${value(8)} / 100 マス`;
+    const player = value(0);
+    const cpu = value(1);
+    setProgress(player, cpu);
+    raceTime.textContent = formatTime(now);
+    const status = value(3);
     if (status === 0) {
-      highlight(current);
-      countdown.textContent = `相手の攻撃まで ${Math.ceil(value(7) / 1000)} 秒`;
-    } else {
-      clearInterval(timer);
-      enableAnswer(false);
-      highlight(-1);
-      for (const square of squares) square.firstElementChild.disabled = true;
-      countdown.textContent = "対戦終了";
-      note.textContent = status === 1 ? (value(9) ? "ライン完成で勝ち！" : "勝ち！ よくできました。") : "相手の勝ち。もう一度チャレンジ！";
-      start.textContent = "もう一度";
-      start.focus();
-      if (status === 1) {
-        const roundStarted = started;
-        grantReward(wasm.battle_reward()).then(reward => {
-          if (reward && started === roundStarted) note.textContent += ` ${reward}`;
-        });
+      highlight(value(2));
+      if (performance.now() >= reactionUntil) react("", "", 0);
+      const lines = Math.floor(cpu / 10);
+      if (lines > opponentLines) {
+        react("laugh", "相手のラインアタック！");
+        opponentLines = lines;
       }
+      return status;
     }
-    if (value(5) !== attacks && status === 0) note.textContent = `${names[opponent]}の攻撃！`;
-    attacks = value(5);
+
+    clearInterval(timer);
+    enableAnswer(false);
+    highlight(-1);
+    for (const square of squares) square.firstElementChild.disabled = true;
+    const won = status === 1;
+    const title = won ? "100マス達成！" : `${names[opponent]}の勝ち！`;
+    const detail = `あなた ${player} マス ／ ${names[opponent]} ${cpu} マス`;
+    const mood = won ? "worried" : "laugh";
+    react(mood, "レース終了");
+    note.textContent = won ? "勝ち！ 100マスを埋めました。" : "相手が先に100マスを埋めました。";
+    start.textContent = "もう一度";
+    showCutin(title, detail, mood, 2600, () => start.focus());
+    if (won) {
+      const roundStarted = started;
+      grantReward(wasm.battle_reward()).then(reward => {
+        if (reward && started === roundStarted) {
+          note.textContent += ` ${reward}`;
+          if (cutin.open) cutinDetail.textContent = `${detail} · ${reward}`;
+        }
+      });
+    }
     return status;
   }
 
   function resetBattle() {
     clearInterval(timer);
+    clearCutin();
     enableAnswer(false);
     input.value = "";
     started = undefined;
@@ -178,35 +243,38 @@ export function setupBattle(wasm, grantReward) {
     roundOperation = Number(operation.value);
     drawGrid(seed);
     question.textContent = "対戦開始を押してね";
-    note.textContent = "マスを選んで、たて・よこのラインを完成させよう。";
-    progress.textContent = "0 / 100 マス";
-    countdown.textContent = "";
-    playerHp.value = 36;
-    document.querySelector("#player-hp-text").textContent = "36 / 36";
-    opponentHp.max = wasm.battle_health(opponent);
-    opponentHp.value = opponentHp.max;
-    document.querySelector("#opponent-hp-text").textContent = `${opponentHp.max} / ${opponentHp.max}`;
-    combo.textContent = 0;
+    note.textContent = "マスを選んで、相手より先に100マスを埋めよう。";
+    raceTime.textContent = "00:00";
+    setProgress(0, 0);
+    react("", "", 0);
     start.textContent = "対戦開始";
   }
 
   start.addEventListener("click", () => {
     clearInterval(timer);
+    enableAnswer(false);
     if (started !== undefined) seed = randomSeed();
     roundOperation = Number(operation.value);
     wasm.battle_start(seed, roundOperation, opponent);
     drawGrid(seed);
-    attacks = 0;
-    started = performance.now();
-    enableAnswer(true);
-    for (const square of squares) square.firstElementChild.disabled = false;
-    input.inputMode = roundOperation === 1 ? "text" : "numeric";
+    setProgress(0, 0);
+    raceTime.textContent = "00:00";
+    opponentLines = 0;
+    react("", "", 0);
+    question.textContent = "まもなくスタート";
+    note.textContent = "";
     input.value = "";
-    note.textContent = "マスをクリック・タップ、または矢印キーで選べます。";
-    start.textContent = "対戦をやり直す";
-    refresh();
-    timer = setInterval(refresh, 100);
-    input.focus();
+    showCutin("百マスレース！", `相手は ${names[opponent]}。よーい、スタート！`, "", 1500, () => {
+      started = performance.now();
+      enableAnswer(true);
+      for (const square of squares) square.firstElementChild.disabled = false;
+      input.inputMode = roundOperation === 1 ? "text" : "numeric";
+      note.textContent = "マスをクリック・タップ、または矢印キーで選べます。";
+      start.textContent = "対戦をやり直す";
+      refresh();
+      timer = setInterval(refresh, 100);
+      input.focus();
+    });
   });
 
   form.addEventListener("submit", event => {
@@ -219,7 +287,7 @@ export function setupBattle(wasm, grantReward) {
       return;
     }
     const now = elapsed();
-    const cell = wasm.battle_value(4, now);
+    const cell = value(2);
     const mark = wasm.battle_submit(Number(answer), now);
     if (mark === 2) {
       const square = squares[cell];
@@ -236,8 +304,10 @@ export function setupBattle(wasm, grantReward) {
       if (squares.filter((_, index) => index % 10 === col).every(item => item.classList.contains("solved"))) {
         colHeaders[col].classList.add("line-complete");
       }
-      const lines = wasm.battle_value(9, now);
-      note.textContent = lines ? `${lines}ライン完成！ ボーナス攻撃！` : `正解！ ${wasm.battle_value(3, now)}連鎖で攻撃！`;
+      const lines = value(4);
+      note.textContent = lines ? `${lines}ライン完成！ ラインアタック！` : "正解！";
+      if (lines) react("worried", "ラインアタック！");
+
       input.value = "";
     } else if (mark === 1) {
       note.textContent = "おしい！ 同じマスにもう一度答えよう。";
