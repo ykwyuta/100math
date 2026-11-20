@@ -19,8 +19,8 @@ h1 span { color: var(--green); }
 .operations { display: flex; min-inline-size: 0; flex-wrap: wrap; padding: 0; margin: 0; gap: 4px; border: 0; }
 .operations legend, .metrics div > span { color: #455c51; font-size: .875rem; }
 .operations legend { margin-bottom: 5px; }
-.operations label { position: relative; }
-.operations input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.operations label { position: relative; cursor: pointer; }
+.operations input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
 .operations label > span { display: block; border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: #fff; font-weight: 650; }
 .operations input:checked + span { background: #d7ebe0; border-color: #84ac9a; color: #114d3d; }
 .operations input:focus-visible + span, button:focus-visible { outline: 3px solid #176452; outline-offset: 2px; }
