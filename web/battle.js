@@ -4,7 +4,7 @@ const names = [
 ];
 const symbols = ["+", "−", "×"];
 
-export function setupBattle(wasm) {
+export function setupBattle(wasm, grantReward) {
   const grid = document.querySelector("#battle-grid");
   const roster = document.querySelector("#roster");
   const portrait = document.querySelector("#opponent-portrait");
@@ -99,6 +99,12 @@ export function setupBattle(wasm) {
       note.textContent = status === 1 ? "勝ち！ よくできました。" : "相手の勝ち。もう一度チャレンジ！";
       start.textContent = "もう一度";
       start.focus();
+      if (status === 1) {
+        const roundStarted = started;
+        grantReward(wasm.battle_reward()).then(reward => {
+          if (reward && started === roundStarted) note.textContent += ` ${reward}`;
+        });
+      }
     }
     lastCell = current;
     if (value(5) !== attacks && status === 0) note.textContent = `${names[opponent]}の攻撃！`;

@@ -14,6 +14,7 @@
       <h1><span>100</span>マス計算</h1>
       <nav class="modes" aria-label="モード">
         <button id="play-mode" type="button" aria-pressed="true">対戦</button>
+        <button id="collection-mode" type="button" aria-pressed="false" disabled>コイン図鑑</button>
         <button id="practice-mode" type="button" aria-pressed="false">れんしゅう</button>
       </nav>
     </header>
@@ -35,6 +36,7 @@
             </label>
             <button id="battle-start" type="button" disabled>対戦開始</button>
           </div>
+          <p id="battle-points" class="battle-points"></p>
           <div class="life">
             <div><label for="player-hp">あなた <span id="player-hp-text"></span></label><progress id="player-hp" max="36" value="36"></progress></div>
             <div><label for="opponent-hp"><span id="opponent-name">ミジンコ</span> <span id="opponent-hp-text"></span></label><progress id="opponent-hp" max="22" value="22"></progress></div>
@@ -54,6 +56,20 @@
           <table id="battle-grid" aria-label="対戦中の100マス計算表"></table>
         </section>
       </div>
+    </section>
+
+    <section id="collection-panel" class="collection" hidden aria-labelledby="collection-title">
+      <div class="collection-header">
+        <div>
+          <h2 id="collection-title">数学者コイン図鑑</h2>
+          <p id="collection-summary"></p>
+        </div>
+        <label>時代
+          <select id="collection-era"></select>
+        </label>
+      </div>
+      <p>対戦に1回勝つと10ポイント。コインが時代順に1枚ずつ増えます。</p>
+      <ul id="coin-catalog"></ul>
     </section>
 
     <section id="practice-panel" hidden aria-label="れんしゅう">

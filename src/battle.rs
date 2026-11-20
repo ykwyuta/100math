@@ -1,3 +1,4 @@
+use crate::collection::POINTS_PER_WIN;
 use crate::{axes, Operation, CELLS, SIDE};
 
 pub const OPPONENTS: [&str; 12] = [
@@ -36,6 +37,7 @@ pub struct Battle {
     interval: u32,
     damage: u32,
     next_attack: u32,
+    reward_claimed: bool,
 }
 
 impl Battle {
@@ -56,7 +58,16 @@ impl Battle {
             interval,
             damage: 3 + level / 2,
             next_attack: interval,
+            reward_claimed: false,
         }
+    }
+
+    pub fn take_reward(&mut self) -> u32 {
+        if self.outcome != Outcome::Win || self.reward_claimed {
+            return 0;
+        }
+        self.reward_claimed = true;
+        POINTS_PER_WIN
     }
 
     pub fn question(&self) -> (i32, i32) {
@@ -144,6 +155,11 @@ mod wasm {
     }
 
     #[no_mangle]
+    pub extern "C" fn battle_reward() -> u32 {
+        BATTLE.with_borrow_mut(|slot| slot.as_mut().map_or(0, Battle::take_reward))
+    }
+
+    #[no_mangle]
     pub extern "C" fn battle_value(field: u32, elapsed: u32) -> u32 {
         BATTLE.with_borrow(|slot| {
             slot.as_ref().map_or(0, |b| match field {
@@ -183,6 +199,8 @@ mod tests {
         assert_eq!(battle.outcome, Outcome::Win);
         assert_eq!(battle.submit(0, 1_000_000), None);
         assert_eq!(battle.player_hp, 36);
+        assert_eq!(battle.take_reward(), POINTS_PER_WIN);
+        assert_eq!(battle.take_reward(), 0);
     }
 
     #[test]
@@ -194,5 +212,6 @@ mod tests {
         assert_eq!((battle.player_hp, battle.attacks), (20, 2));
         assert_eq!(battle.submit(0, 20_000), None);
         assert_eq!(battle.outcome, Outcome::Loss);
+        assert_eq!(battle.take_reward(), 0);
     }
 }

@@ -433,7 +433,7 @@ pub fn run() {
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, null_mut(), 0, 0) > 0 {
             let root = GetAncestor(message.hwnd, GA_ROOT);
-            if !root.is_null() && root != hwnd && GetWindow(root, GW_OWNER) == hwnd {
+            if !root.is_null() && root != hwnd && GetAncestor(root, GA_ROOTOWNER) == hwnd {
                 if !crate::battle_window::translate(root, &message) {
                     TranslateMessage(&message);
                     DispatchMessageW(&message);

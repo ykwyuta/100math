@@ -1,12 +1,13 @@
+use crate::collection_window;
 use crate::windows::wide;
 use hundred_math::battle::{Battle, Outcome, OPPONENTS};
+use hundred_math::collection::{unlocked_coins, COIN_COUNT};
 use hundred_math::{Operation, CELLS, SIDE};
 use std::ptr::{null, null_mut};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::System::SystemServices::SS_CENTER;
 use windows_sys::Win32::UI::Controls::{EM_SETLIMITTEXT, EM_SETSEL};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     EnableWindow, SetActiveWindow, SetFocus, VK_RETURN,
@@ -19,6 +20,7 @@ const START: usize = 3;
 const OPPONENT: usize = 4;
 const OPERATION: usize = 5;
 const ANSWER: usize = 6;
+pub const COLLECTION: usize = 7;
 const TIMER: usize = 1;
 const PORTRAITS: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents.bgra");
 
@@ -45,6 +47,8 @@ struct BattleWindow {
     note: HWND,
     start: HWND,
     font: HFONT,
+    points_label: HWND,
+    points: u32,
     opponent: usize,
     round: Option<Round>,
 }
@@ -153,12 +157,13 @@ impl BattleWindow {
         SendMessageW(answer, EM_SETLIMITTEXT, 5, 0);
         let attack = control("BUTTON", "攻撃", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
         let note = control("STATIC", "", 0, 0, (121, 164, 461, 25));
+        let points_label = control("STATIC", "", 0, 0, (19, 538, 392, 25));
         control(
-            "STATIC",
-            "正解が続くほど攻撃が強くなります。",
-            SS_CENTER,
-            0,
-            (18, 535, 564, 25),
+            "BUTTON",
+            "コイン図鑑",
+            WS_TABSTOP,
+            COLLECTION,
+            (450, 532, 130, 29),
         );
         let mut state = Box::new(Self {
             opponent_picker,
@@ -171,11 +176,47 @@ impl BattleWindow {
             note,
             start,
             font,
+            points_label,
+            points: collection_window::load_points(),
             opponent: 0,
             round: None,
         });
         state.reset(hwnd);
+        state.show_points();
         state
+    }
+
+    unsafe fn show_points(&self) {
+        let coins = unlocked_coins(self.points);
+        set_text(
+            self.points_label,
+            &format!("{} pt    {coins} / {COIN_COUNT} 枚", self.points),
+        );
+    }
+
+    unsafe fn win_message(&mut self) -> String {
+        let award = self
+            .round
+            .as_mut()
+            .map_or(0, |round| round.game.take_reward());
+        if award == 0 {
+            return "勝ち！ よくできました。".to_owned();
+        }
+        let previous = self.points.max(collection_window::load_points());
+        self.points = previous.saturating_add(award);
+        let saved = collection_window::save_points(self.points);
+        self.show_points();
+        let before = unlocked_coins(previous);
+        let mut message = format!("勝ち！ +{award} pt");
+        if unlocked_coins(self.points) > before {
+            if let Some(name) = collection_window::coin_name(before) {
+                message.push_str(&format!("・{name}のコインを獲得"));
+            }
+        }
+        if !saved {
+            message.push_str("（保存できませんでした）");
+        }
+        message
     }
 
     unsafe fn enable_answer(&self, enabled: bool) {
@@ -261,7 +302,7 @@ impl BattleWindow {
         }
     }
 
-    unsafe fn finish_or_refresh(&self, hwnd: HWND, old_attacks: u32) {
+    unsafe fn finish_or_refresh(&mut self, hwnd: HWND, old_attacks: u32) {
         self.refresh();
         let Some(round) = &self.round else {
             return;
@@ -275,14 +316,12 @@ impl BattleWindow {
                 KillTimer(hwnd, TIMER);
                 self.enable_answer(false);
                 set_text(self.start, "もう一度");
-                set_text(
-                    self.note,
-                    if outcome == Outcome::Win {
-                        "勝ち！ よくできました。"
-                    } else {
-                        "相手の勝ち。もう一度チャレンジ！"
-                    },
-                );
+                let message = if outcome == Outcome::Win {
+                    self.win_message()
+                } else {
+                    "相手の勝ち。もう一度チャレンジ！".to_owned()
+                };
+                set_text(self.note, &message);
                 SetFocus(self.start);
                 InvalidateRect(hwnd, null(), 1);
             }
@@ -469,6 +508,18 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
                 (OPPONENT | OPERATION, CBN_SELCHANGE) => (*state).reset(hwnd),
                 (START, BN_CLICKED) => (*state).start(hwnd),
                 (ATTACK, BN_CLICKED) => (*state).submit(hwnd),
+                (COLLECTION, BN_CLICKED) => {
+                    if (*state)
+                        .round
+                        .as_ref()
+                        .is_some_and(|round| round.game.outcome == Outcome::Playing)
+                    {
+                        (*state).reset(hwnd);
+                    }
+                    (*state).points = (*state).points.max(collection_window::load_points());
+                    (*state).show_points();
+                    collection_window::open(hwnd, (*state).points);
+                }
                 _ => {}
             }
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize);

@@ -92,3 +92,20 @@ button:disabled { opacity: .55; cursor: default; }
   .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .opponents, .battle-round { padding: 8px; }
 }
+
+.battle-points { margin: 7px 0 0; font-size: .9rem; font-weight: 700; color: #675017; }
+.collection { background: white; border: 1px solid var(--line); border-radius: 16px; padding: clamp(12px, 3vw, 25px); }
+.collection-header { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.collection-header h2 { margin: 0; font-size: clamp(1.35rem, 4vw, 2rem); }
+#collection-summary { margin: 4px 0 0; color: #675017; font-weight: 700; }
+.collection-header label { display: grid; gap: 4px; }
+.collection select { font: inherit; color: inherit; background: white; border: 1px solid #9cb5aa; border-radius: 8px; padding: 6px; }
+#coin-catalog { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; list-style: none; padding: 0; margin: 16px 0 0; }
+#coin-catalog li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 12px; background: #faf7ec; border: 1px solid #e4d7b4; border-radius: 12px; }
+#coin-catalog li.coin-locked { background: #f4f6f3; border-color: var(--line); }
+.math-coin { display: grid; place-items: center; width: 90px; aspect-ratio: 1; border-radius: 50%; background-size: 500% 400%; background-repeat: no-repeat; font-weight: 700; font-size: 1.6rem; }
+.coin-locked .math-coin { color: #557064; background-color: #e3ebe5; border: 2px dashed #97b2a2; }
+.coin-status { position: absolute; top: 8px; right: 10px; font-size: .75rem; color: #455c51; }
+#coin-catalog h3 { margin: 6px 0 0; text-align: center; font-size: 1rem; overflow-wrap: anywhere; }
+#coin-catalog p { margin: 4px 0 0; font-size: .9rem; }
+#coin-catalog .coin-dates { color: #455c51; }

@@ -1,4 +1,5 @@
 import { setupBattle } from "./battle.js";
+import { setupCollection } from "./collection.js";
 
 const side = 10;
 const symbols = ["+", "−", "×"];
@@ -166,20 +167,24 @@ try {
   newBoard(false);
   operations.disabled = false;
   newButton.disabled = false;
-  const resetBattle = setupBattle(wasm);
-  const battle = document.querySelector("#battle");
-  const practice = document.querySelector("#practice-panel");
-  const playMode = document.querySelector("#play-mode");
-  const practiceMode = document.querySelector("#practice-mode");
-  const showPractice = show => {
-    if (show) resetBattle();
-    battle.hidden = show;
-    practice.hidden = !show;
-    playMode.setAttribute("aria-pressed", !show);
-    practiceMode.setAttribute("aria-pressed", show);
-  };
-  playMode.addEventListener("click", () => showPractice(false));
-  practiceMode.addEventListener("click", () => showPractice(true));
+  const collection = await setupCollection(wasm);
+  const resetBattle = setupBattle(wasm, collection.grant);
+  const modes = [
+    [document.querySelector("#play-mode"), document.querySelector("#battle")],
+    [document.querySelector("#practice-mode"), document.querySelector("#practice-panel")],
+    [document.querySelector("#collection-mode"), collection.panel],
+  ];
+  for (const [button, panel] of modes) {
+    button.addEventListener("click", () => {
+      if (!panel.hidden) return;
+      if (panel !== modes[0][1]) resetBattle();
+      for (const [option, section] of modes) {
+        section.hidden = section !== panel;
+        option.setAttribute("aria-pressed", section === panel);
+      }
+    });
+  }
+  document.querySelector("#collection-mode").disabled = false;
   document.querySelector("#battle-start").disabled = false;
   document.querySelector("#battle-operation").disabled = false;
 } catch (error) {

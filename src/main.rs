@@ -3,6 +3,8 @@
 #[cfg(windows)]
 mod battle_window;
 #[cfg(windows)]
+mod collection_window;
+#[cfg(windows)]
 mod windows;
 
 #[cfg(windows)]
