@@ -1,6 +1,8 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 #[cfg(windows)]
+mod battle_window;
+#[cfg(windows)]
 mod windows;
 
 #[cfg(windows)]

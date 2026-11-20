@@ -12,6 +12,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
+pub const OPEN_BATTLE: usize = 104;
 const NEW: usize = 101;
 const CHECK: usize = 102;
 const OPERATION: usize = 103;
@@ -20,7 +21,7 @@ const TIMER: usize = 1;
 const STEP_X: i32 = 50;
 const STEP_Y: i32 = 33;
 
-fn wide(text: &str) -> Vec<u16> {
+pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
 
@@ -134,6 +135,13 @@ impl Window {
         });
         control("BUTTON", "新しい問題", WS_TABSTOP, NEW, (20, 455, 120, 34));
         let check = control("BUTTON", "採点する", WS_TABSTOP, CHECK, (150, 455, 120, 34));
+        control(
+            "BUTTON",
+            "対戦する",
+            WS_TABSTOP,
+            OPEN_BATTLE,
+            (435, 455, 120, 34),
+        );
         let result = control("STATIC", "", 0, 0, (20, 500, 545, 28));
         control(
             "STATIC",
@@ -316,6 +324,11 @@ unsafe extern "system" fn window_proc(hwnd: HWND, message: u32, w: WPARAM, l: LP
             let id = w & 0xffff;
             let notification = (w >> 16) as u32;
 
+            if id == OPEN_BATTLE && notification == BN_CLICKED {
+                crate::battle_window::open(hwnd);
+                return 0;
+            }
+
             // Updating a child can synchronously reenter this procedure.
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             match id {
@@ -416,8 +429,17 @@ pub fn run() {
         }
         ShowWindow(hwnd, SW_SHOW);
         SetFocus(GetDlgItem(hwnd, FIRST_CELL as i32));
+        crate::battle_window::open(hwnd);
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, null_mut(), 0, 0) > 0 {
+            let root = GetAncestor(message.hwnd, GA_ROOT);
+            if !root.is_null() && root != hwnd && GetWindow(root, GW_OWNER) == hwnd {
+                if !crate::battle_window::translate(root, &message) {
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+                continue;
+            }
             if message.message == WM_KEYDOWN {
                 let state = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Window;
                 if !state.is_null() && (*state).key(hwnd, &message) {

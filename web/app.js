@@ -1,3 +1,5 @@
+import { setupBattle } from "./battle.js";
+
 const side = 10;
 const symbols = ["+", "−", "×"];
 const table = document.querySelector("#grid");
@@ -164,7 +166,24 @@ try {
   newBoard(false);
   operations.disabled = false;
   newButton.disabled = false;
+  const resetBattle = setupBattle(wasm);
+  const battle = document.querySelector("#battle");
+  const practice = document.querySelector("#practice-panel");
+  const playMode = document.querySelector("#play-mode");
+  const practiceMode = document.querySelector("#practice-mode");
+  const showPractice = show => {
+    if (show) resetBattle();
+    battle.hidden = show;
+    practice.hidden = !show;
+    playMode.setAttribute("aria-pressed", !show);
+    practiceMode.setAttribute("aria-pressed", show);
+  };
+  playMode.addEventListener("click", () => showPractice(false));
+  practiceMode.addEventListener("click", () => showPractice(true));
+  document.querySelector("#battle-start").disabled = false;
+  document.querySelector("#battle-operation").disabled = false;
 } catch (error) {
   console.error(error);
+  document.querySelector("#question").textContent = "計算機能を読み込めませんでした。";
   result.textContent = "計算機能を読み込めませんでした。ページを再読み込みしてください。";
 }

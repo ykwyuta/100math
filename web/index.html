@@ -12,9 +12,52 @@
   <main class="practice">
     <header class="masthead">
       <h1><span>100</span>マス計算</h1>
-      <p>左の数と上の数を使って、マスを埋めよう。</p>
+      <nav class="modes" aria-label="モード">
+        <button id="play-mode" type="button" aria-pressed="true">対戦</button>
+        <button id="practice-mode" type="button" aria-pressed="false">れんしゅう</button>
+      </nav>
     </header>
 
+    <section id="battle" aria-label="計算対戦">
+      <section class="opponents" aria-labelledby="roster-title">
+        <h2 id="roster-title">対戦相手をえらぼう</h2>
+        <div id="roster" class="roster" aria-labelledby="roster-title"></div>
+      </section>
+      <div class="arena">
+        <section class="battle-round" aria-label="対戦盤">
+          <div class="battle-controls">
+            <label>計算の種類
+              <select id="battle-operation" disabled>
+                <option value="0">＋ たし算</option>
+                <option value="1">− ひき算</option>
+                <option value="2">× かけ算</option>
+              </select>
+            </label>
+            <button id="battle-start" type="button" disabled>対戦開始</button>
+          </div>
+          <div class="life">
+            <div><label for="player-hp">あなた <span id="player-hp-text"></span></label><progress id="player-hp" max="36" value="36"></progress></div>
+            <div><label for="opponent-hp"><span id="opponent-name">ミジンコ</span> <span id="opponent-hp-text"></span></label><progress id="opponent-hp" max="22" value="22"></progress></div>
+          </div>
+          <div class="duel">
+            <div id="opponent-portrait" class="portrait" aria-hidden="true"></div>
+            <div class="turn">
+              <div class="round-stats"><span><strong id="combo">0</strong> 連鎖</span><span id="countdown"></span></div>
+              <p id="question">読み込み中…</p>
+              <form id="answer-form">
+                <input id="battle-answer" aria-label="答え" maxlength="5" autocomplete="off" disabled>
+                <button type="submit" disabled>攻撃</button>
+              </form>
+              <p id="battle-note" role="status"></p>
+            </div>
+          </div>
+          <table id="battle-grid" aria-label="対戦中の100マス計算表"></table>
+        </section>
+      </div>
+    </section>
+
+    <section id="practice-panel" hidden aria-label="れんしゅう">
+    <p>左の数と上の数を使って、マスを埋めよう。</p>
     <div class="toolbar">
       <fieldset class="operations" disabled>
         <legend>計算の種類</legend>
@@ -39,6 +82,7 @@
       <p id="result" role="status">読み込み中…</p>
     </section>
     <p id="instructions">Enter・Tabで次のマス、矢印キーで上下左右に移動。ひき算は「左 − 上」です。</p>
+    </section>
     <noscript>100マス計算を使うにはJavaScriptを有効にしてください。</noscript>
   </main>
 </body>

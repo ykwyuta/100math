@@ -10,5 +10,5 @@ fi
 rustup target add wasm32-unknown-unknown
 cargo build --locked --release --lib --target wasm32-unknown-unknown
 mkdir -p dist
-cp web/index.html web/style.css web/app.js web/_headers dist/
+cp web/index.html web/style.css web/app.js web/battle.js web/opponents.webp web/_headers dist/
 cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/hundred_math.wasm" dist/

@@ -49,3 +49,46 @@ button:disabled { opacity: .55; cursor: default; }
   .worksheet { padding: 5px; }
   .actions, #result { margin-inline: 4px; }
 }
+
+.practice { width: min(100% - 32px, 1100px); }
+#practice-panel { max-width: 780px; }
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.modes { display: flex; gap: 5px; }
+.modes [aria-pressed="true"], #battle-start, #answer-form button { background: var(--green); color: white; border-color: var(--green); }
+#battle:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); align-items: start; gap: 18px; }
+.opponents, .battle-round { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+.opponents h2 { font-size: 1.125rem; margin: 0 0 12px; }
+.roster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.roster button { overflow: hidden; padding: 3px 2px 5px; font-size: clamp(.72rem, 1.4vw, .9rem); border-color: var(--line); }
+.roster [aria-pressed="true"] { outline: 2px solid var(--green); outline-offset: -2px; background: #d7ebe0; }
+.portrait { display: block; aspect-ratio: 3 / 4; background: #fbf3df url("./opponents.webp") no-repeat; background-size: 400% 300%; background-position: calc(var(--col, 0) * 100% / 3) calc(var(--row, 0) * 50%); border-radius: 5px; }
+.roster .portrait { width: 100%; margin-bottom: 4px; }
+.battle-controls { display: flex; justify-content: space-between; align-items: end; gap: 8px; flex-wrap: wrap; }
+.battle-controls label { display: grid; gap: 3px; font-size: .875rem; }
+.battle-controls select { color: inherit; font: inherit; font-size: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px; }
+.life { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.life label { display: flex; justify-content: space-between; gap: 4px; font-weight: 700; font-size: .875rem; }
+.life progress { display: block; width: 100%; height: 14px; accent-color: var(--green); }
+#opponent-hp { accent-color: #bd593b; }
+.duel { display: flex; gap: 12px; align-items: start; padding: 9px; background: #f7f1e2; border-radius: 10px; margin-bottom: 10px; }
+#opponent-portrait { flex: 0 0 clamp(54px, 9vw, 90px); }
+.turn { flex: 1; min-width: 0; }
+.round-stats { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px; font-size: .875rem; }
+#question { margin: 3px 0 6px; font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 750; }
+#answer-form { display: flex; gap: 5px; }
+#battle-answer { width: min(100%, 6rem); min-width: 0; border: 1px solid #9cb5aa; border-radius: 7px; padding: 4px 7px; }
+#answer-form button { padding: 4px 9px; white-space: nowrap; }
+#battle-note { margin: 4px 0 0; font-size: .875rem; min-height: 1.5em; }
+#battle-grid th, #battle-grid td { height: clamp(25px, 4vw, 35px); }
+#battle-grid .current { background: #fff0bf; box-shadow: inset 0 0 0 2px #926313; }
+#battle-grid .solved { background: #d7ebe0; color: #114d3d; font-weight: 700; }
+@media (max-width: 730px) {
+  #battle:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .arena { grid-row: 1; }
+  .roster { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (max-width: 450px) {
+  .practice { width: calc(100% - 16px); }
+  .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .opponents, .battle-round { padding: 8px; }
+}

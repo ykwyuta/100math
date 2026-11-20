@@ -1,3 +1,5 @@
+pub mod battle;
+
 pub const SIDE: usize = 10;
 pub const CELLS: usize = SIDE * SIDE;
 
