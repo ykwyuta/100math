@@ -1,4 +1,4 @@
-use crate::windows::wide;
+use crate::windows::{game_icon, wide};
 use hundred_math::collection::{unlocked_coins, CATALOG, COIN_COUNT};
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::*;
@@ -290,6 +290,7 @@ pub unsafe fn open(owner: HWND, points: u32) {
         hInstance: instance,
         lpszClassName: class.as_ptr(),
         hCursor: LoadCursorW(null_mut(), IDC_ARROW),
+        hIcon: game_icon(instance),
         hbrBackground: GetSysColorBrush(COLOR_BTNFACE),
         ..std::mem::zeroed()
     });

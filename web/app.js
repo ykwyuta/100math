@@ -170,25 +170,38 @@ try {
   const collection = await setupCollection(wasm);
   const resetBattle = setupBattle(wasm, collection.grant);
   const modes = [
+    [document.querySelector("#home-mode"), document.querySelector("#home-panel")],
     [document.querySelector("#play-mode"), document.querySelector("#battle")],
     [document.querySelector("#practice-mode"), document.querySelector("#practice-panel")],
     [document.querySelector("#collection-mode"), collection.panel],
   ];
+  function showMode(panel) {
+    if (!panel.hidden) return;
+    if (panel !== modes[1][1]) resetBattle();
+    for (const [option, section] of modes) {
+      section.hidden = section !== panel;
+      option.setAttribute("aria-pressed", section === panel);
+    }
+  }
   for (const [button, panel] of modes) {
+    button.addEventListener("click", () => showMode(panel));
+  }
+  for (const [index, id] of ["#start-play", "#start-practice", "#start-collection"].entries()) {
+    const button = document.querySelector(id);
+    const [tab, panel] = modes[index + 1];
+    button.disabled = false;
     button.addEventListener("click", () => {
-      if (!panel.hidden) return;
-      if (panel !== modes[0][1]) resetBattle();
-      for (const [option, section] of modes) {
-        section.hidden = section !== panel;
-        option.setAttribute("aria-pressed", section === panel);
-      }
+      showMode(panel);
+      tab.focus();
     });
   }
+  document.querySelector("#start-status").hidden = true;
   document.querySelector("#collection-mode").disabled = false;
   document.querySelector("#battle-start").disabled = false;
   document.querySelector("#battle-operation").disabled = false;
 } catch (error) {
   console.error(error);
+  document.querySelector("#start-status").textContent = "読み込めませんでした。ページを再読み込みしてください。";
   document.querySelector("#question").textContent = "計算機能を読み込めませんでした。";
   result.textContent = "計算機能を読み込めませんでした。ページを再読み込みしてください。";
 }

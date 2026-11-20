@@ -21,6 +21,11 @@ const TIMER: usize = 1;
 const STEP_X: i32 = 50;
 const STEP_Y: i32 = 33;
 
+pub unsafe fn game_icon(instance: HINSTANCE) -> HICON {
+    // Resource 101 is the multi-size icon in assets/game.rc.
+    LoadIconW(instance, 101usize as *const u16)
+}
+
 pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
@@ -389,6 +394,7 @@ pub fn run() {
             hInstance: instance,
             lpszClassName: class.as_ptr(),
             hCursor: LoadCursorW(null_mut(), IDC_ARROW),
+            hIcon: game_icon(instance),
             hbrBackground: GetSysColorBrush(COLOR_BTNFACE),
             ..std::mem::zeroed()
         };

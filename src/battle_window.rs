@@ -1,5 +1,5 @@
 use crate::collection_window;
-use crate::windows::wide;
+use crate::windows::{game_icon, wide};
 use hundred_math::battle::{Battle, Outcome, OPPONENTS};
 use hundred_math::collection::{unlocked_coins, COIN_COUNT};
 use hundred_math::{Operation, CELLS, SIDE};
@@ -21,6 +21,10 @@ const OPPONENT: usize = 4;
 const OPERATION: usize = 5;
 const ANSWER: usize = 6;
 pub const COLLECTION: usize = 7;
+const HOME: usize = 8;
+const ENTER_BATTLE: usize = 9;
+const HOME_PRACTICE: usize = 10;
+const START_ART: &[u8; 564 * 376 * 3] = include_bytes!("../assets/start.bgr");
 const TIMER: usize = 1;
 const PORTRAITS: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents.bgra");
 
@@ -51,6 +55,10 @@ struct BattleWindow {
     points: u32,
     opponent: usize,
     round: Option<Round>,
+    home: bool,
+    home_buttons: [HWND; 2],
+    battle_controls: Vec<HWND>,
+    title_font: HFONT,
 }
 
 fn box_rect(left: i32, top: i32, right: i32, bottom: i32) -> RECT {
@@ -84,7 +92,8 @@ impl BattleWindow {
             0,
             wide("Yu Gothic UI").as_ptr(),
         );
-        let control = |class: &str, label: &str, style, id, (x, y, w, h)| {
+        let mut battle_controls = Vec::new();
+        let mut control = |class: &str, label: &str, style, id, (x, y, w, h)| {
             let handle = CreateWindowExW(
                 0,
                 wide(class).as_ptr(),
@@ -100,6 +109,7 @@ impl BattleWindow {
                 null(),
             );
             SendMessageW(handle, WM_SETFONT, font as WPARAM, 1);
+            battle_controls.push(handle);
             handle
         };
         control("STATIC", "対戦相手", 0, 0, (18, 10, 160, 24));
@@ -165,6 +175,42 @@ impl BattleWindow {
             COLLECTION,
             (450, 532, 130, 29),
         );
+        control("BUTTON", "ホーム", WS_TABSTOP, HOME, (340, 532, 100, 29));
+        let home_buttons = [
+            control(
+                "BUTTON",
+                "対戦をはじめる",
+                WS_TABSTOP,
+                ENTER_BATTLE,
+                (19, 519, 224, 40),
+            ),
+            control(
+                "BUTTON",
+                "れんしゅう",
+                WS_TABSTOP,
+                HOME_PRACTICE,
+                (254, 519, 178, 40),
+            ),
+        ];
+        battle_controls.retain(|handle| {
+            !home_buttons.contains(handle) && GetDlgCtrlID(*handle) != COLLECTION as i32
+        });
+        let title_font = CreateFontW(
+            -32,
+            0,
+            0,
+            0,
+            FW_BOLD as i32,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET as u32,
+            0,
+            0,
+            0,
+            0,
+            wide("Yu Gothic UI").as_ptr(),
+        );
         let mut state = Box::new(Self {
             opponent_picker,
             operation_picker,
@@ -180,10 +226,88 @@ impl BattleWindow {
             points: collection_window::load_points(),
             opponent: 0,
             round: None,
+            home: true,
+            home_buttons,
+            battle_controls,
+            title_font,
         });
         state.reset(hwnd);
         state.show_points();
+        state.show_home(hwnd, true);
         state
+    }
+
+    unsafe fn show_home(&mut self, hwnd: HWND, home: bool) {
+        self.home = home;
+        if home {
+            self.reset(hwnd);
+        }
+        for handle in &self.battle_controls {
+            ShowWindow(*handle, if home { SW_HIDE } else { SW_SHOWNA });
+        }
+        for handle in self.home_buttons {
+            ShowWindow(handle, if home { SW_SHOWNA } else { SW_HIDE });
+        }
+        if IsWindowVisible(hwnd) != 0 {
+            SetFocus(if home {
+                self.home_buttons[0]
+            } else {
+                self.opponent_picker
+            });
+        }
+        InvalidateRect(hwnd, null(), 1);
+    }
+
+    unsafe fn paint_home(&self, dc: HDC) {
+        let mut cover = box_rect(0, 0, 600, 566);
+        let paper = CreateSolidBrush(0x00dcf3fc);
+        FillRect(dc, &cover, paper);
+        DeleteObject(paper);
+
+        let previous_font = SelectObject(dc, self.title_font);
+        SetBkMode(dc, TRANSPARENT as i32);
+        SetTextColor(dc, 0x00465415);
+        cover = box_rect(19, 12, 581, 69);
+        DrawTextW(
+            dc,
+            wide("計算バトルへようこそ！").as_ptr(),
+            -1,
+            &mut cover,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+        );
+        SelectObject(dc, self.font);
+        cover = box_rect(19, 461, 581, 507);
+        DrawTextW(
+            dc,
+            wide("100マスを解いて連鎖で攻撃。勝つたびにコインが集まるよ！").as_ptr(),
+            -1,
+            &mut cover,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+        );
+        SelectObject(dc, previous_font);
+
+        let mut info: BITMAPINFO = std::mem::zeroed();
+        info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        info.bmiHeader.biWidth = 564;
+        info.bmiHeader.biHeight = -376;
+        info.bmiHeader.biPlanes = 1;
+        info.bmiHeader.biBitCount = 24;
+        info.bmiHeader.biCompression = BI_RGB;
+        StretchDIBits(
+            dc,
+            18,
+            76,
+            564,
+            376,
+            0,
+            0,
+            564,
+            376,
+            START_ART.as_ptr().cast(),
+            &info,
+            DIB_RGB_COLORS,
+            SRCCOPY,
+        );
     }
 
     unsafe fn show_points(&self) {
@@ -389,6 +513,11 @@ impl BattleWindow {
     unsafe fn paint(&self, hwnd: HWND) {
         let mut paint: PAINTSTRUCT = std::mem::zeroed();
         let dc = BeginPaint(hwnd, &mut paint);
+        if self.home {
+            self.paint_home(dc);
+            EndPaint(hwnd, &paint);
+            return;
+        }
         let mut info: BITMAPINFO = std::mem::zeroed();
         info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
         info.bmiHeader.biWidth = 72;
@@ -489,7 +618,9 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
         }
         WM_NCDESTROY if !state.is_null() => {
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
-            DeleteObject(Box::from_raw(state).font);
+            let state = Box::from_raw(state);
+            DeleteObject(state.font);
+            DeleteObject(state.title_font);
         }
         WM_PAINT if !state.is_null() => {
             (*state).paint(hwnd);
@@ -498,7 +629,7 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
         WM_COMMAND if !state.is_null() => {
             let id = w & 0xffff;
             let event = (w >> 16) as u32;
-            if id == PRACTICE && event == BN_CLICKED {
+            if matches!(id, PRACTICE | HOME_PRACTICE) && event == BN_CLICKED {
                 SendMessageW(hwnd, WM_CLOSE, 0, 0);
                 return 0;
             }
@@ -506,6 +637,8 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             match (id, event) {
                 (OPPONENT | OPERATION, CBN_SELCHANGE) => (*state).reset(hwnd),
+                (HOME, BN_CLICKED) => (*state).show_home(hwnd, true),
+                (ENTER_BATTLE, BN_CLICKED) => (*state).show_home(hwnd, false),
                 (START, BN_CLICKED) => (*state).start(hwnd),
                 (ATTACK, BN_CLICKED) => (*state).submit(hwnd),
                 (COLLECTION, BN_CLICKED) => {
@@ -544,6 +677,7 @@ pub unsafe fn open(owner: HWND) {
         hInstance: instance,
         lpszClassName: class.as_ptr(),
         hCursor: LoadCursorW(null_mut(), IDC_ARROW),
+        hIcon: game_icon(instance),
         hbrBackground: GetSysColorBrush(COLOR_BTNFACE),
         ..std::mem::zeroed()
     });
@@ -555,7 +689,7 @@ pub unsafe fn open(owner: HWND) {
     let window = CreateWindowExW(
         WS_EX_CONTROLPARENT,
         class.as_ptr(),
-        wide("100マス計算 対戦").as_ptr(),
+        wide("100マス計算").as_ptr(),
         style,
         owner_rect.left,
         owner_rect.top,
@@ -569,7 +703,7 @@ pub unsafe fn open(owner: HWND) {
     if !window.is_null() {
         EnableWindow(owner, 0);
         ShowWindow(window, SW_SHOW);
-        SetFocus(GetDlgItem(window, OPPONENT as i32));
+        SetFocus(GetDlgItem(window, ENTER_BATTLE as i32));
     }
 }
 
