@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="たし算・ひき算・かけ算を練習できる100マス計算。">
+  <title>100マス計算</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="practice">
+    <header class="masthead">
+      <h1><span>100</span>マス計算</h1>
+      <p>左の数と上の数を使って、マスを埋めよう。</p>
+    </header>
+
+    <div class="toolbar">
+      <fieldset class="operations" disabled>
+        <legend>計算の種類</legend>
+        <label><input type="radio" name="operation" value="0" checked><span>＋ たし算</span></label>
+        <label><input type="radio" name="operation" value="1"><span>− ひき算</span></label>
+        <label><input type="radio" name="operation" value="2"><span>× かけ算</span></label>
+      </fieldset>
+      <div class="metrics">
+        <div><span>入力済み</span><strong><span id="count">0</span><small> / 100</small></strong></div>
+        <div><span>タイム</span><strong id="time">00:00</strong></div>
+      </div>
+    </div>
+
+    <section class="worksheet" aria-label="計算問題">
+      <div class="board">
+        <table id="grid" aria-label="100マスの計算表" aria-describedby="instructions"></table>
+      </div>
+      <div class="actions">
+        <button id="new" type="button" disabled>新しい問題</button>
+        <button id="check" type="button" disabled>採点する</button>
+      </div>
+      <p id="result" role="status">読み込み中…</p>
+    </section>
+    <p id="instructions">Enter・Tabで次のマス、矢印キーで上下左右に移動。ひき算は「左 − 上」です。</p>
+    <noscript>100マス計算を使うにはJavaScriptを有効にしてください。</noscript>
+  </main>
+</body>
+</html>

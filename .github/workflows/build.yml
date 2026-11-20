@@ -1,0 +1,32 @@
+name: Build and test
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: cargo test --locked
+      - run: bash scripts/build-web.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: 100math-web
+          path: dist/
+          if-no-files-found: error
+          include-hidden-files: false
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: cargo test --locked --lib
+      - run: cargo build --locked --release --bin hundred-math
+      - uses: actions/upload-artifact@v7
+        with:
+          name: 100math-windows-x64
+          path: target/release/hundred-math.exe
+          if-no-files-found: error

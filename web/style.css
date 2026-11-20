@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light;
+  font: 16px/1.5 system-ui, "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  background: #f2f6f1;
+  color: #172d26;
+  --green: #176452;
+  --line: #ccdbd1;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+.practice { width: min(100% - 32px, 780px); margin: 34px auto; }
+.masthead { border-top: 4px solid var(--green); padding-top: 16px; }
+h1 { font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1.05; letter-spacing: -.055em; margin: 0; }
+h1 span { color: var(--green); }
+.masthead p { margin: 10px 0 20px; color: #455c51; }
+.toolbar, .actions { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.toolbar { margin-bottom: 12px; }
+.operations { display: flex; min-inline-size: 0; flex-wrap: wrap; padding: 0; margin: 0; gap: 4px; border: 0; }
+.operations legend, .metrics div > span { color: #455c51; font-size: .875rem; }
+.operations legend { margin-bottom: 5px; }
+.operations label { position: relative; }
+.operations input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.operations label > span { display: block; border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: #fff; font-weight: 650; }
+.operations input:checked + span { background: #d7ebe0; border-color: #84ac9a; color: #114d3d; }
+.operations input:focus-visible + span, button:focus-visible { outline: 3px solid #176452; outline-offset: 2px; }
+.metrics { display: flex; gap: 8px; font-variant-numeric: tabular-nums; }
+.metrics div { display: grid; min-width: 95px; padding: 4px 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.metrics strong { font-size: 1.125rem; }
+.metrics small { color: #455c51; font-size: .875rem; }
+.worksheet { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.board { overflow-x: auto; }
+table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { height: clamp(33px, 5vw, 44px); border: 1px solid var(--line); padding: 0; text-align: center; }
+th { background: #e4efe7; color: #204b3c; }
+th.corner { background: var(--green); color: white; }
+td input { display: block; width: 100%; min-width: 0; height: clamp(32px, 5vw, 43px); outline: 0; border: 0; padding: 0; text-align: center; border-radius: 0; background: transparent; color: inherit; }
+td input:focus { outline: 2px solid var(--green); outline-offset: -2px; background: #edf7f0; }
+td[data-mark="correct"] { background: #e2f2e5; color: #17543d; }
+td[data-mark="incorrect"] { background: #fde8e5; color: #912f25; box-shadow: inset 0 -2px #b45143; }
+.actions { margin-top: 12px; }
+button { cursor: pointer; border: 1px solid #99b7a8; border-radius: 8px; padding: 8px 14px; font-weight: 700; color: var(--green); background: #fff; }
+button:disabled { opacity: .55; cursor: default; }
+#check { background: var(--green); color: #fff; border-color: var(--green); }
+#result { margin: 10px 0 0; min-height: 1.5em; }
+#instructions { color: #455c51; font-size: .875rem; margin: 12px 0 0; }
+@media (max-width: 500px) {
+  .practice { width: calc(100% - 16px); margin: 14px auto; }
+  .worksheet { padding: 5px; }
+  .actions, #result { margin-inline: 4px; }
+}
