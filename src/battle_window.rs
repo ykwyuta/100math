@@ -2,7 +2,7 @@ use crate::collection_window;
 use crate::windows::{game_icon, wide};
 use hundred_math::battle::{Battle, Outcome, OPPONENTS};
 use hundred_math::collection::{unlocked_coins, COIN_COUNT};
-use hundred_math::{Operation, CELLS, SIDE};
+use hundred_math::{Operation, SIDE};
 use std::ptr::{null, null_mut};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use windows_sys::Win32::Foundation::*;
@@ -10,7 +10,8 @@ use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Controls::{EM_SETLIMITTEXT, EM_SETSEL};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    EnableWindow, SetActiveWindow, SetFocus, VK_RETURN,
+    EnableWindow, GetKeyState, SetActiveWindow, SetFocus, VK_CONTROL, VK_DOWN, VK_LEFT, VK_RETURN,
+    VK_RIGHT, VK_UP,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
@@ -26,12 +27,16 @@ const ENTER_BATTLE: usize = 9;
 const HOME_PRACTICE: usize = 10;
 const START_ART: &[u8; 564 * 376 * 3] = include_bytes!("../assets/start.bgr");
 const TIMER: usize = 1;
+const MOVE_CURSOR: u32 = WM_APP + 1;
+const GRID_X: i32 = 19;
+const GRID_Y: i32 = 198;
+const CELL_X: i32 = 51;
+const CELL_Y: i32 = 30;
 const PORTRAITS: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents.bgra");
 
 struct Round {
     game: Battle,
     started: Instant,
-    solved: [Option<i32>; CELLS],
 }
 
 impl Round {
@@ -372,12 +377,14 @@ impl BattleWindow {
         self.round = Some(Round {
             game: Battle::new(seed, Operation::from_index(operation), self.opponent),
             started: Instant::now(),
-            solved: [None; CELLS],
         });
         self.enable_answer(true);
         set_text(self.start, "対戦をやり直す");
         set_text(self.answer, "");
-        set_text(self.note, "答えを入力して攻撃しよう！");
+        set_text(
+            self.note,
+            "クリック・矢印キーで選択。たて・よこ10マスでボーナス！",
+        );
         SetFocus(self.answer);
         SetTimer(hwnd, TIMER, 150, None);
         self.refresh();
@@ -390,12 +397,13 @@ impl BattleWindow {
                 let game = &round.game;
                 let stats = if game.outcome == Outcome::Playing {
                     format!(
-                        "{} 連鎖     相手の攻撃まで {} 秒",
+                        "{} / 100 マス   {} 連鎖   攻撃まで {} 秒",
+                        game.solved_count,
                         game.combo,
                         game.remaining(round.elapsed()).div_ceil(1000)
                     )
                 } else {
-                    "対戦終了".to_owned()
+                    format!("対戦終了   {} / 100 マス", game.solved_count)
                 };
                 (
                     game.player_hp,
@@ -405,7 +413,7 @@ impl BattleWindow {
                 )
             }
             None => {
-                let hp = 22 + 3 * self.opponent as u32;
+                let hp = Battle::opponent_health(self.opponent);
                 (36, hp, hp, "0 連鎖".to_owned())
             }
         };
@@ -441,7 +449,13 @@ impl BattleWindow {
                 self.enable_answer(false);
                 set_text(self.start, "もう一度");
                 let message = if outcome == Outcome::Win {
-                    self.win_message()
+                    let line = round.game.last_lines > 0;
+                    let message = self.win_message();
+                    if line {
+                        format!("ライン完成！ {message}")
+                    } else {
+                        message
+                    }
                 } else {
                     "相手の勝ち。もう一度チャレンジ！".to_owned()
                 };
@@ -488,14 +502,14 @@ impl BattleWindow {
             return;
         };
         let old_attacks = round.game.attacks;
-        let cell = round.game.cell;
         match round.game.submit(value, round.elapsed()) {
             Some(true) => {
-                round.solved[cell] = Some(value);
-                set_text(
-                    self.note,
-                    &format!("正解！ {}連鎖で攻撃！", round.game.combo),
-                );
+                let message = if round.game.last_lines > 0 {
+                    format!("{}ライン完成！ ボーナス攻撃！", round.game.last_lines)
+                } else {
+                    format!("正解！ {}連鎖で攻撃！", round.game.combo)
+                };
+                set_text(self.note, &message);
                 set_text(self.answer, "");
                 SetFocus(self.answer);
                 InvalidateRect(hwnd, null(), 1);
@@ -508,6 +522,22 @@ impl BattleWindow {
             None => {}
         }
         self.finish_or_refresh(hwnd, old_attacks);
+    }
+
+    unsafe fn select_square(&mut self, hwnd: HWND, index: Option<usize>, direction: (i32, i32)) {
+        let Some(round) = &mut self.round else {
+            return;
+        };
+        let selected = match index {
+            Some(cell) => round.game.select(cell),
+            None => round.game.move_selection(direction.0, direction.1),
+        };
+        if selected {
+            set_text(self.answer, "");
+            SetFocus(self.answer);
+            self.refresh();
+            InvalidateRect(hwnd, null(), 0);
+        }
     }
 
     unsafe fn paint(&self, hwnd: HWND) {
@@ -545,35 +575,74 @@ impl BattleWindow {
         if let Some(round) = &self.round {
             let previous_font = SelectObject(dc, self.font);
             SetBkMode(dc, TRANSPARENT as i32);
+            let game = &round.game;
+            let selected = (game.outcome == Outcome::Playing)
+                .then_some((game.cell / SIDE + 1, game.cell % SIDE + 1));
             let header = CreateSolidBrush(0x00e7efe4);
             let current = CreateSolidBrush(0x00bff0ff);
+            let crosshair = CreateSolidBrush(0x00ebf9f5);
+            let active_axis = CreateSolidBrush(0x00a4dff6);
+            let completed = CreateSolidBrush(0x00526417);
             let solved = CreateSolidBrush(0x00e0ebd7);
             for row in 0..=SIDE {
                 for col in 0..=SIDE {
-                    let x = 19 + 51 * col as i32;
-                    let y = 198 + 30 * row as i32;
-                    let mut rect = box_rect(x, y, x + 50, y + 29);
+                    let x = GRID_X + CELL_X * col as i32;
+                    let y = GRID_Y + CELL_Y * row as i32;
+                    let mut rect = box_rect(x, y, x + CELL_X - 1, y + CELL_Y - 1);
+                    let (in_row, in_col) =
+                        selected.map_or((false, false), |(r, c)| (r == row, c == col));
                     let (value, brush) = match (row, col) {
-                        (0, 0) => (round.game.operation.symbol().to_owned(), header),
-                        (0, col) => (round.game.numbers[SIDE + col - 1].to_string(), header),
-                        (row, 0) => (round.game.numbers[row - 1].to_string(), header),
+                        (0, 0) => (game.operation.symbol().to_owned(), header),
+                        (0, col) => (
+                            game.numbers[SIDE + col - 1].to_string(),
+                            if game.line_complete(col - 1, true) {
+                                completed
+                            } else if in_col {
+                                active_axis
+                            } else {
+                                header
+                            },
+                        ),
+                        (row, 0) => (
+                            game.numbers[row - 1].to_string(),
+                            if game.line_complete(row - 1, false) {
+                                completed
+                            } else if in_row {
+                                active_axis
+                            } else {
+                                header
+                            },
+                        ),
                         (row, col) => {
                             let index = (row - 1) * SIDE + col - 1;
-                            let brush = if round.game.outcome == Outcome::Playing
-                                && index == round.game.cell
-                            {
+                            let answered = game.is_solved(index);
+                            let brush = if in_row && in_col {
                                 current
-                            } else if round.solved[index].is_some() {
+                            } else if answered {
                                 solved
+                            } else if in_row || in_col {
+                                crosshair
                             } else {
                                 GetSysColorBrush(COLOR_WINDOW)
                             };
-                            (
-                                round.solved[index].map_or_else(String::new, |n| n.to_string()),
-                                brush,
-                            )
+                            let value = if answered {
+                                game.operation
+                                    .answer(game.numbers[row - 1], game.numbers[SIDE + col - 1])
+                                    .to_string()
+                            } else {
+                                String::new()
+                            };
+                            (value, brush)
                         }
                     };
+                    SetTextColor(
+                        dc,
+                        GetSysColor(if brush == completed {
+                            COLOR_WINDOW
+                        } else {
+                            COLOR_WINDOWTEXT
+                        }),
+                    );
                     FillRect(dc, &rect, brush);
                     FrameRect(dc, &rect, GetSysColorBrush(COLOR_3DLIGHT));
                     if !value.is_empty() {
@@ -589,7 +658,7 @@ impl BattleWindow {
                 }
             }
             SelectObject(dc, previous_font);
-            for brush in [header, current, solved] {
+            for brush in [header, current, crosshair, active_axis, completed, solved] {
                 DeleteObject(brush);
             }
         }
@@ -658,6 +727,33 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize);
             return 0;
         }
+        WM_LBUTTONDOWN | MOVE_CURSOR if !state.is_null() => {
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+            if message == MOVE_CURSOR {
+                let direction = match w as u16 {
+                    VK_LEFT => (-1, 0),
+                    VK_RIGHT => (1, 0),
+                    VK_UP => (0, -1),
+                    VK_DOWN => (0, 1),
+                    _ => (0, 0),
+                };
+                (*state).select_square(hwnd, None, direction);
+            } else {
+                let x = (l as i16 as i32) - GRID_X;
+                let y = ((l >> 16) as i16 as i32) - GRID_Y;
+                let col = x / CELL_X;
+                let row = y / CELL_Y;
+                if (1..=SIDE as i32).contains(&row) && (1..=SIDE as i32).contains(&col) {
+                    (*state).select_square(
+                        hwnd,
+                        Some((row as usize - 1) * SIDE + col as usize - 1),
+                        (0, 0),
+                    );
+                }
+            }
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize);
+            return 0;
+        }
         WM_TIMER if w == TIMER && !state.is_null() => {
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             (*state).tick(hwnd);
@@ -708,12 +804,18 @@ pub unsafe fn open(owner: HWND) {
 }
 
 pub unsafe fn translate(window: HWND, message: &MSG) -> bool {
-    if message.message == WM_KEYDOWN
-        && message.wParam == VK_RETURN as usize
-        && GetDlgCtrlID(message.hwnd) == ANSWER as i32
-    {
-        SendMessageW(window, WM_COMMAND, ATTACK, 0);
-        return true;
+    if message.message == WM_KEYDOWN && GetDlgCtrlID(message.hwnd) == ANSWER as i32 {
+        match message.wParam as u16 {
+            VK_RETURN => {
+                SendMessageW(window, WM_COMMAND, ATTACK, 0);
+                return true;
+            }
+            VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN if GetKeyState(VK_CONTROL as i32) >= 0 => {
+                SendMessageW(window, MOVE_CURSOR, message.wParam, 0);
+                return true;
+            }
+            _ => {}
+        }
     }
     IsDialogMessageW(window, message) != 0
 }
