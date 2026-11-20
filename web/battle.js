@@ -18,12 +18,14 @@ export function setupBattle(wasm, grantReward) {
   const playerHp = document.querySelector("#player-hp");
   const opponentHp = document.querySelector("#opponent-hp");
   const combo = document.querySelector("#combo");
+  const progress = document.querySelector("#board-progress");
   const countdown = document.querySelector("#countdown");
 
   let opponent = 0;
   let rows, cols, roundOperation, squares, started, timer, seed;
   let attacks = 0;
-  let lastCell = 0;
+  let highlighted;
+  let rowHeaders, colHeaders;
   const elapsed = () => Math.floor(performance.now() - started);
   const enableAnswer = enabled => {
     input.disabled = !enabled;
@@ -64,16 +66,71 @@ export function setupBattle(wasm, grantReward) {
     squares = [];
     const node = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
     const head = document.createElement("thead");
-    head.insertRow().append(node("th", symbols[roundOperation]),
-      ...cols.map(col => Object.assign(node("th", col), { scope: "col" })));
+    colHeaders = cols.map(col => Object.assign(node("th", col), { scope: "col" }));
+    head.insertRow().append(node("th", symbols[roundOperation]), ...colHeaders);
     const body = document.createElement("tbody");
-    rows.forEach(row => {
+    rowHeaders = rows.map(row => Object.assign(node("th", row), { scope: "row" }));
+    rows.forEach((row, r) => {
       const line = body.insertRow();
-      line.append(Object.assign(node("th", row), { scope: "row" }));
-      cols.forEach(() => squares.push(line.insertCell()));
+      line.append(rowHeaders[r]);
+      cols.forEach((col, c) => {
+        const square = line.insertCell();
+        const pick = document.createElement("button");
+        const index = r * 10 + c;
+        pick.type = "button";
+        pick.tabIndex = -1;
+        pick.disabled = true;
+        pick.dataset.cell = index;
+        pick.setAttribute("aria-label", `${r + 1}行 ${c + 1}列、${row} ${symbols[roundOperation]} ${col}`);
+        square.append(pick);
+        squares.push(square);
+      });
     });
+    highlighted = undefined;
     grid.replaceChildren(head, body);
   }
+
+  function highlight(current) {
+    if (highlighted === current) return;
+    highlighted = current;
+    const row = Math.floor(current / 10);
+    const col = current % 10;
+    squares.forEach((square, index) => {
+      square.classList.toggle("current", index === current);
+      square.classList.toggle("crosshair", row === Math.floor(index / 10) || col === index % 10);
+      square.firstElementChild.tabIndex = index === current ? 0 : -1;
+      square.firstElementChild.setAttribute("aria-pressed", index === current);
+    });
+    rowHeaders.forEach((header, index) => header.classList.toggle("axis-active", index === row));
+    colHeaders.forEach((header, index) => header.classList.toggle("axis-active", index === col));
+    if (current >= 0) question.textContent = `${rows[row]} ${symbols[roundOperation]} ${cols[col]} = ?`;
+  }
+
+  function selectCell(index) {
+    if (input.disabled || !wasm.battle_select(index)) return;
+    highlight(index);
+    input.value = "";
+    input.focus();
+  }
+
+  grid.addEventListener("click", event => {
+    const button = event.target.closest("[data-cell]");
+    if (button) selectCell(Number(button.dataset.cell));
+  });
+
+  const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  const moveCell = event => {
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || input.disabled) return;
+    if (!Object.hasOwn(directions, event.key)) return;
+    event.preventDefault();
+    if (!wasm.battle_move(...directions[event.key])) return;
+    const next = wasm.battle_value(4, elapsed());
+    highlight(next);
+    input.value = "";
+    if (event.currentTarget === grid) squares[next].firstElementChild.focus();
+  };
+  grid.addEventListener("keydown", moveCell);
+  input.addEventListener("keydown", moveCell);
 
   function refresh() {
     const now = elapsed();
@@ -87,16 +144,17 @@ export function setupBattle(wasm, grantReward) {
     combo.textContent = value(3);
     const current = value(4);
     const status = value(6);
-    squares[lastCell].classList.remove("current");
+    progress.textContent = `${value(8)} / 100 マス`;
     if (status === 0) {
-      squares[current].classList.add("current");
-      question.textContent = `${rows[Math.floor(current / 10)]} ${symbols[roundOperation]} ${cols[current % 10]} = ?`;
+      highlight(current);
       countdown.textContent = `相手の攻撃まで ${Math.ceil(value(7) / 1000)} 秒`;
     } else {
       clearInterval(timer);
       enableAnswer(false);
+      highlight(-1);
+      for (const square of squares) square.firstElementChild.disabled = true;
       countdown.textContent = "対戦終了";
-      note.textContent = status === 1 ? "勝ち！ よくできました。" : "相手の勝ち。もう一度チャレンジ！";
+      note.textContent = status === 1 ? (value(9) ? "ライン完成で勝ち！" : "勝ち！ よくできました。") : "相手の勝ち。もう一度チャレンジ！";
       start.textContent = "もう一度";
       start.focus();
       if (status === 1) {
@@ -106,7 +164,6 @@ export function setupBattle(wasm, grantReward) {
         });
       }
     }
-    lastCell = current;
     if (value(5) !== attacks && status === 0) note.textContent = `${names[opponent]}の攻撃！`;
     attacks = value(5);
     return status;
@@ -121,11 +178,12 @@ export function setupBattle(wasm, grantReward) {
     roundOperation = Number(operation.value);
     drawGrid(seed);
     question.textContent = "対戦開始を押してね";
-    note.textContent = "正解が続くほど攻撃が強くなります。";
+    note.textContent = "マスを選んで、たて・よこのラインを完成させよう。";
+    progress.textContent = "0 / 100 マス";
     countdown.textContent = "";
     playerHp.value = 36;
     document.querySelector("#player-hp-text").textContent = "36 / 36";
-    opponentHp.max = 22 + 3 * opponent;
+    opponentHp.max = wasm.battle_health(opponent);
     opponentHp.value = opponentHp.max;
     document.querySelector("#opponent-hp-text").textContent = `${opponentHp.max} / ${opponentHp.max}`;
     combo.textContent = 0;
@@ -138,13 +196,13 @@ export function setupBattle(wasm, grantReward) {
     roundOperation = Number(operation.value);
     wasm.battle_start(seed, roundOperation, opponent);
     drawGrid(seed);
-    lastCell = 0;
     attacks = 0;
     started = performance.now();
     enableAnswer(true);
+    for (const square of squares) square.firstElementChild.disabled = false;
     input.inputMode = roundOperation === 1 ? "text" : "numeric";
     input.value = "";
-    note.textContent = "答えを入力して攻撃しよう！";
+    note.textContent = "マスをクリック・タップ、または矢印キーで選べます。";
     start.textContent = "対戦をやり直す";
     refresh();
     timer = setInterval(refresh, 100);
@@ -164,9 +222,22 @@ export function setupBattle(wasm, grantReward) {
     const cell = wasm.battle_value(4, now);
     const mark = wasm.battle_submit(Number(answer), now);
     if (mark === 2) {
-      squares[cell].textContent = answer;
-      squares[cell].classList.add("solved");
-      note.textContent = `正解！ ${wasm.battle_value(3, now)}連鎖で攻撃！`;
+      const square = squares[cell];
+      const button = square.firstElementChild;
+      button.textContent = Number(answer);
+      button.setAttribute("aria-label", `${button.getAttribute("aria-label")} = ${Number(answer)}、正解済み`);
+      button.disabled = true;
+      square.classList.add("solved");
+      const row = Math.floor(cell / 10);
+      const col = cell % 10;
+      if (squares.slice(row * 10, row * 10 + 10).every(item => item.classList.contains("solved"))) {
+        rowHeaders[row].classList.add("line-complete");
+      }
+      if (squares.filter((_, index) => index % 10 === col).every(item => item.classList.contains("solved"))) {
+        colHeaders[col].classList.add("line-complete");
+      }
+      const lines = wasm.battle_value(9, now);
+      note.textContent = lines ? `${lines}ライン完成！ ボーナス攻撃！` : `正解！ ${wasm.battle_value(3, now)}連鎖で攻撃！`;
       input.value = "";
     } else if (mark === 1) {
       note.textContent = "おしい！ 同じマスにもう一度答えよう。";

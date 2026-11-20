@@ -72,7 +72,11 @@
               <p id="battle-note" role="status"></p>
             </div>
           </div>
-          <table id="battle-grid" aria-label="対戦中の100マス計算表"></table>
+          <div class="board-legend">
+            <span id="board-progress">0 / 100 マス</span>
+            <span id="board-rules">隣のマスで連鎖、たて・よこ10マスでボーナス</span>
+          </div>
+          <table aria-describedby="board-rules" id="battle-grid" aria-label="対戦中の100マス計算表"></table>
         </section>
       </div>
     </section>

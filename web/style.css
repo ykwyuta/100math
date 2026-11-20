@@ -132,3 +132,15 @@ button:disabled { opacity: .55; cursor: default; }
   .start-picture img { height: auto; }
   .start-content h2 br { display: none; }
 }
+
+.board-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 10px; margin: 8px 0 5px; color: #455c51; font-size: .875rem; }
+#board-progress { font-weight: 750; color: #176452; }
+#battle-grid td { position: relative; }
+#battle-grid td button { display: block; width: 100%; height: 100%; min-height: clamp(24px, 3.8vw, 34px); padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; }
+#battle-grid td button:disabled { opacity: 1; }
+#battle-grid td button:focus-visible { outline-offset: -3px; }
+#battle-grid td:not(.solved, .current):has(button:enabled):hover { background: #eef7ec; }
+#battle-grid .crosshair:not(.current):not(.solved) { background: #f5f9eb; }
+#battle-grid .axis-active { background: #f6dfa4; color: #5d400a; }
+#battle-grid .line-complete { background: #176452; color: white; }
+#battle-grid .current { background: #fff0bf; }
