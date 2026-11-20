@@ -4,7 +4,7 @@ use hundred_math::battle::{Battle, Outcome, OPPONENTS};
 use hundred_math::collection::{unlocked_coins, COIN_COUNT};
 use hundred_math::{Operation, SIDE};
 use std::ptr::{null, null_mut};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -25,6 +25,7 @@ pub const COLLECTION: usize = 7;
 const HOME: usize = 8;
 const ENTER_BATTLE: usize = 9;
 const HOME_PRACTICE: usize = 10;
+const CUTIN_CONTINUE: usize = 11;
 const START_ART: &[u8; 564 * 376 * 3] = include_bytes!("../assets/start.bgr");
 const TIMER: usize = 1;
 const MOVE_CURSOR: u32 = WM_APP + 1;
@@ -33,6 +34,22 @@ const GRID_Y: i32 = 198;
 const CELL_X: i32 = 51;
 const CELL_Y: i32 = 30;
 const PORTRAITS: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents.bgra");
+const WORRIED: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents-worried.bgra");
+const LAUGH: &[u8; 12 * 72 * 96 * 4] = include_bytes!("../assets/opponents-laugh.bgra");
+
+#[derive(Clone, Copy)]
+enum Mood {
+    Neutral,
+    Worried,
+    Laugh,
+}
+
+#[derive(Clone, Copy)]
+enum Cutin {
+    Start,
+    Win,
+    Loss,
+}
 
 struct Round {
     game: Battle,
@@ -50,7 +67,7 @@ struct BattleWindow {
     operation_picker: HWND,
     answer: HWND,
     attack: HWND,
-    hp: HWND,
+    progress: HWND,
     stats: HWND,
     question: HWND,
     note: HWND,
@@ -64,6 +81,13 @@ struct BattleWindow {
     home_buttons: [HWND; 2],
     battle_controls: Vec<HWND>,
     title_font: HFONT,
+    collection: HWND,
+    cutin_button: HWND,
+    cutin: Option<(Cutin, Instant)>,
+    mood: Mood,
+    reaction_until: Option<Instant>,
+    opponent_lines: u32,
+    finish_time: Option<u32>,
 }
 
 fn box_rect(left: i32, top: i32, right: i32, bottom: i32) -> RECT {
@@ -159,7 +183,7 @@ impl BattleWindow {
             PRACTICE,
             (470, 33, 112, 28),
         );
-        let hp = control("STATIC", "", 0, 0, (121, 77, 461, 24));
+        let progress = control("STATIC", "", 0, 0, (121, 77, 461, 24));
         let stats = control("STATIC", "", 0, 0, (121, 106, 461, 24));
         let question = control("STATIC", "", 0, 0, (121, 134, 202, 26));
         let answer = control(
@@ -170,10 +194,10 @@ impl BattleWindow {
             (330, 132, 70, 28),
         );
         SendMessageW(answer, EM_SETLIMITTEXT, 5, 0);
-        let attack = control("BUTTON", "攻撃", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
+        let attack = control("BUTTON", "答える", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
         let note = control("STATIC", "", 0, 0, (121, 164, 461, 25));
         let points_label = control("STATIC", "", 0, 0, (19, 538, 392, 25));
-        control(
+        let collection = control(
             "BUTTON",
             "コイン図鑑",
             WS_TABSTOP,
@@ -197,8 +221,16 @@ impl BattleWindow {
                 (254, 519, 178, 40),
             ),
         ];
+        let cutin_button = control(
+            "BUTTON",
+            "つづける",
+            WS_TABSTOP,
+            CUTIN_CONTINUE,
+            (286, 367, 140, 40),
+        );
+        ShowWindow(cutin_button, SW_HIDE);
         battle_controls.retain(|handle| {
-            !home_buttons.contains(handle) && GetDlgCtrlID(*handle) != COLLECTION as i32
+            !home_buttons.contains(handle) && *handle != collection && *handle != cutin_button
         });
         let title_font = CreateFontW(
             -32,
@@ -221,7 +253,7 @@ impl BattleWindow {
             operation_picker,
             answer,
             attack,
-            hp,
+            progress,
             stats,
             question,
             note,
@@ -235,6 +267,13 @@ impl BattleWindow {
             home_buttons,
             battle_controls,
             title_font,
+            collection,
+            cutin_button,
+            cutin: None,
+            mood: Mood::Neutral,
+            reaction_until: None,
+            opponent_lines: 0,
+            finish_time: None,
         });
         state.reset(hwnd);
         state.show_points();
@@ -284,7 +323,7 @@ impl BattleWindow {
         cover = box_rect(19, 461, 581, 507);
         DrawTextW(
             dc,
-            wide("100マスを解いて連鎖で攻撃。勝つたびにコインが集まるよ！").as_ptr(),
+            wide("相手より先に100マスを埋めよう。勝つたびにコインが集まるよ！").as_ptr(),
             -1,
             &mut cover,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE,
@@ -356,6 +395,10 @@ impl BattleWindow {
     unsafe fn reset(&mut self, hwnd: HWND) {
         KillTimer(hwnd, TIMER);
         self.round = None;
+        self.mood = Mood::Neutral;
+        self.reaction_until = None;
+        self.opponent_lines = 0;
+        self.finish_time = None;
         self.opponent = SendMessageW(self.opponent_picker, CB_GETCURSEL, 0, 0)
             .clamp(0, (OPPONENTS.len() - 1) as isize) as usize;
         self.enable_answer(false);
@@ -378,53 +421,74 @@ impl BattleWindow {
             game: Battle::new(seed, Operation::from_index(operation), self.opponent),
             started: Instant::now(),
         });
-        self.enable_answer(true);
-        set_text(self.start, "対戦をやり直す");
-        set_text(self.answer, "");
-        set_text(
-            self.note,
-            "クリック・矢印キーで選択。たて・よこ10マスでボーナス！",
-        );
-        SetFocus(self.answer);
-        SetTimer(hwnd, TIMER, 150, None);
+        self.mood = Mood::Neutral;
+        self.reaction_until = None;
+        self.opponent_lines = 0;
+        self.finish_time = None;
+        self.enable_answer(false);
+        self.show_cutin(hwnd, Cutin::Start, 1500);
+        SetTimer(hwnd, TIMER, 100, None);
+    }
+
+    unsafe fn show_cutin(&mut self, hwnd: HWND, frame: Cutin, duration: u64) {
+        self.cutin = Some((frame, Instant::now() + Duration::from_millis(duration)));
+        for &handle in self.battle_controls.iter().chain([&self.collection]) {
+            ShowWindow(handle, SW_HIDE);
+        }
+        ShowWindow(self.cutin_button, SW_SHOWNA);
+        SetFocus(self.cutin_button);
+        InvalidateRect(hwnd, null(), 1);
+    }
+
+    unsafe fn finish_cutin(&mut self, hwnd: HWND) {
+        let Some((frame, _)) = self.cutin.take() else {
+            return;
+        };
+        ShowWindow(self.cutin_button, SW_HIDE);
+        for &handle in self.battle_controls.iter().chain([&self.collection]) {
+            ShowWindow(handle, SW_SHOWNA);
+        }
+        if matches!(frame, Cutin::Start) {
+            if let Some(round) = &mut self.round {
+                round.started = Instant::now();
+            }
+            self.enable_answer(true);
+            set_text(self.start, "対戦をやり直す");
+            set_text(self.answer, "");
+            set_text(self.note, "クリック・矢印キーでマスを選べます。");
+            SetFocus(self.answer);
+        } else {
+            KillTimer(hwnd, TIMER);
+            SetFocus(self.start);
+        }
         self.refresh();
         InvalidateRect(hwnd, null(), 1);
     }
 
     unsafe fn refresh(&self) {
-        let (player, opponent, maximum, stats) = match &self.round {
-            Some(round) => {
-                let game = &round.game;
-                let stats = if game.outcome == Outcome::Playing {
-                    format!(
-                        "{} / 100 マス   {} 連鎖   攻撃まで {} 秒",
-                        game.solved_count,
-                        game.combo,
-                        game.remaining(round.elapsed()).div_ceil(1000)
-                    )
-                } else {
-                    format!("対戦終了   {} / 100 マス", game.solved_count)
-                };
-                (
-                    game.player_hp,
-                    game.opponent_hp,
-                    game.opponent_max_hp,
-                    stats,
-                )
-            }
-            None => {
-                let hp = Battle::opponent_health(self.opponent);
-                (36, hp, hp, "0 連鎖".to_owned())
-            }
-        };
+        let (player, cpu, seconds) = self.round.as_ref().map_or((0, 0, 0), |round| {
+            (
+                round.game.solved_count,
+                round.game.opponent_solved,
+                self.finish_time.unwrap_or_else(|| round.elapsed()) / 1_000,
+            )
+        });
         set_text(
-            self.hp,
+            self.progress,
             &format!(
-                "あなた {player} / 36     {} {opponent} / {maximum}",
+                "あなた {player} / 100     {} {cpu} / 100",
                 OPPONENTS[self.opponent]
             ),
         );
-        set_text(self.stats, &stats);
+        let race_status = if self.finish_time.is_some() {
+            "対戦終了"
+        } else {
+            "タイム"
+        };
+        set_text(
+            self.stats,
+            &format!("{race_status}   {:02}:{:02}", seconds / 60, seconds % 60),
+        );
         if let Some(round) = &self.round {
             let (row, col) = round.game.question();
             set_text(
@@ -434,48 +498,72 @@ impl BattleWindow {
         }
     }
 
-    unsafe fn finish_or_refresh(&mut self, hwnd: HWND, old_attacks: u32) {
-        self.refresh();
+    unsafe fn react(&mut self, hwnd: HWND, mood: Mood) {
+        self.mood = mood;
+        self.reaction_until = Some(Instant::now() + Duration::from_millis(2200));
+        InvalidateRect(hwnd, &box_rect(23, 80, 104, 188), 0);
+    }
+
+    unsafe fn finish_or_refresh(&mut self, hwnd: HWND) {
         let Some(round) = &self.round else {
             return;
         };
-        match round.game.outcome {
-            Outcome::Playing if round.game.attacks != old_attacks => {
-                set_text(self.note, &format!("{}の攻撃！", OPPONENTS[self.opponent]));
+        let outcome = round.game.outcome;
+        let lines = round.game.opponent_solved / 10;
+        if outcome == Outcome::Playing {
+            if lines > self.opponent_lines {
+                self.opponent_lines = lines;
+                set_text(
+                    self.note,
+                    &format!("{}のラインアタック！", OPPONENTS[self.opponent]),
+                );
+                self.react(hwnd, Mood::Laugh);
             }
-            Outcome::Playing => {}
-            outcome => {
-                KillTimer(hwnd, TIMER);
-                self.enable_answer(false);
-                set_text(self.start, "もう一度");
-                let message = if outcome == Outcome::Win {
-                    let line = round.game.last_lines > 0;
-                    let message = self.win_message();
-                    if line {
-                        format!("ライン完成！ {message}")
-                    } else {
-                        message
-                    }
-                } else {
-                    "相手の勝ち。もう一度チャレンジ！".to_owned()
-                };
-                set_text(self.note, &message);
-                SetFocus(self.start);
-                InvalidateRect(hwnd, null(), 1);
-            }
+            self.refresh();
+            return;
         }
+
+        self.finish_time = Some(round.elapsed());
+        self.enable_answer(false);
+        set_text(self.start, "もう一度");
+        let (message, frame, mood) = if outcome == Outcome::Win {
+            (self.win_message(), Cutin::Win, Mood::Worried)
+        } else {
+            (
+                "相手が先に100マスを埋めました。".to_owned(),
+                Cutin::Loss,
+                Mood::Laugh,
+            )
+        };
+        self.mood = mood;
+        set_text(self.note, &message);
+        self.refresh();
+        self.show_cutin(hwnd, frame, 2600);
     }
 
     unsafe fn tick(&mut self, hwnd: HWND) {
+        if let Some((_, until)) = self.cutin {
+            if Instant::now() >= until {
+                self.finish_cutin(hwnd);
+            }
+            return;
+        }
         let Some(round) = &mut self.round else {
             return;
         };
         if round.game.outcome != Outcome::Playing {
             return;
         }
-        let old_attacks = round.game.attacks;
         round.game.tick(round.elapsed());
-        self.finish_or_refresh(hwnd, old_attacks);
+        if self
+            .reaction_until
+            .is_some_and(|until| Instant::now() >= until)
+        {
+            self.mood = Mood::Neutral;
+            self.reaction_until = None;
+            InvalidateRect(hwnd, &box_rect(23, 80, 104, 188), 0);
+        }
+        self.finish_or_refresh(hwnd);
     }
 
     unsafe fn submit(&mut self, hwnd: HWND) {
@@ -501,15 +589,16 @@ impl BattleWindow {
             SetFocus(self.answer);
             return;
         };
-        let old_attacks = round.game.attacks;
+
         match round.game.submit(value, round.elapsed()) {
             Some(true) => {
-                let message = if round.game.last_lines > 0 {
-                    format!("{}ライン完成！ ボーナス攻撃！", round.game.last_lines)
+                let lines = round.game.last_lines;
+                if lines > 0 {
+                    set_text(self.note, &format!("{lines}ライン完成！ ラインアタック！"));
+                    self.react(hwnd, Mood::Worried);
                 } else {
-                    format!("正解！ {}連鎖で攻撃！", round.game.combo)
-                };
-                set_text(self.note, &message);
+                    set_text(self.note, "正解！");
+                }
                 set_text(self.answer, "");
                 SetFocus(self.answer);
                 InvalidateRect(hwnd, null(), 1);
@@ -521,7 +610,7 @@ impl BattleWindow {
             }
             None => {}
         }
-        self.finish_or_refresh(hwnd, old_attacks);
+        self.finish_or_refresh(hwnd);
     }
 
     unsafe fn select_square(&mut self, hwnd: HWND, index: Option<usize>, direction: (i32, i32)) {
@@ -540,6 +629,75 @@ impl BattleWindow {
         }
     }
 
+    unsafe fn paint_portrait(&self, dc: HDC, rect: RECT) {
+        let mut info: BITMAPINFO = std::mem::zeroed();
+        info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        info.bmiHeader.biWidth = 72;
+        info.bmiHeader.biHeight = -96;
+        info.bmiHeader.biPlanes = 1;
+        info.bmiHeader.biBitCount = 32;
+        info.bmiHeader.biCompression = BI_RGB;
+        let portraits = match self.mood {
+            Mood::Neutral => PORTRAITS,
+            Mood::Worried => WORRIED,
+            Mood::Laugh => LAUGH,
+        };
+        let at = self.opponent * 72 * 96 * 4;
+        StretchDIBits(
+            dc,
+            rect.left,
+            rect.top,
+            rect.right - rect.left,
+            rect.bottom - rect.top,
+            0,
+            0,
+            72,
+            96,
+            portraits[at..].as_ptr().cast(),
+            &info,
+            DIB_RGB_COLORS,
+            SRCCOPY,
+        );
+    }
+
+    unsafe fn paint_cutin(&self, dc: HDC, frame: Cutin) {
+        let backdrop = CreateSolidBrush(0x002b3815);
+        let paper = CreateSolidBrush(0x00d6f3ff);
+        FillRect(dc, &box_rect(0, 0, 600, 566), backdrop);
+        FillRect(dc, &box_rect(24, 146, 576, 426), paper);
+        DeleteObject(backdrop);
+        DeleteObject(paper);
+        self.paint_portrait(dc, box_rect(45, 172, 207, 388));
+        let title = match frame {
+            Cutin::Start => "百マスレース！",
+            Cutin::Win => "100マス達成！",
+            Cutin::Loss => "相手の勝ち！",
+        };
+        let old = SelectObject(dc, self.title_font);
+        SetBkMode(dc, TRANSPARENT as i32);
+        SetTextColor(dc, 0x00333e13);
+        let mut area = box_rect(223, 184, 559, 270);
+        DrawTextW(
+            dc,
+            wide(title).as_ptr(),
+            -1,
+            &mut area,
+            DT_VCENTER | DT_SINGLELINE,
+        );
+        SelectObject(dc, self.font);
+        let detail = match (frame, &self.round) {
+            (Cutin::Start, _) => format!("相手は {}。よーい、スタート！", OPPONENTS[self.opponent]),
+            (_, Some(round)) => format!(
+                "あなた {} マス ／ {} {} マス",
+                round.game.solved_count, OPPONENTS[self.opponent], round.game.opponent_solved
+            ),
+            _ => String::new(),
+        };
+        let mut area = box_rect(223, 270, 559, 356);
+        DrawTextW(dc, wide(&detail).as_ptr(), -1, &mut area, DT_WORDBREAK);
+        SelectObject(dc, old);
+    }
+
     unsafe fn paint(&self, hwnd: HWND) {
         let mut paint: PAINTSTRUCT = std::mem::zeroed();
         let dc = BeginPaint(hwnd, &mut paint);
@@ -548,29 +706,12 @@ impl BattleWindow {
             EndPaint(hwnd, &paint);
             return;
         }
-        let mut info: BITMAPINFO = std::mem::zeroed();
-        info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-        info.bmiHeader.biWidth = 72;
-        info.bmiHeader.biHeight = -96;
-        info.bmiHeader.biPlanes = 1;
-        info.bmiHeader.biBitCount = 32;
-        info.bmiHeader.biCompression = BI_RGB;
-        let at = self.opponent * 72 * 96 * 4;
-        StretchDIBits(
-            dc,
-            23,
-            80,
-            81,
-            108,
-            0,
-            0,
-            72,
-            96,
-            PORTRAITS[at..].as_ptr().cast(),
-            &info,
-            DIB_RGB_COLORS,
-            SRCCOPY,
-        );
+        if let Some((frame, _)) = self.cutin {
+            self.paint_cutin(dc, frame);
+            EndPaint(hwnd, &paint);
+            return;
+        }
+        self.paint_portrait(dc, box_rect(23, 80, 104, 188));
 
         if let Some(round) = &self.round {
             let previous_font = SelectObject(dc, self.font);
@@ -708,6 +849,7 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
                 (OPPONENT | OPERATION, CBN_SELCHANGE) => (*state).reset(hwnd),
                 (HOME, BN_CLICKED) => (*state).show_home(hwnd, true),
                 (ENTER_BATTLE, BN_CLICKED) => (*state).show_home(hwnd, false),
+                (CUTIN_CONTINUE, BN_CLICKED) => (*state).finish_cutin(hwnd),
                 (START, BN_CLICKED) => (*state).start(hwnd),
                 (ATTACK, BN_CLICKED) => (*state).submit(hwnd),
                 (COLLECTION, BN_CLICKED) => {
@@ -727,7 +869,7 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize);
             return 0;
         }
-        WM_LBUTTONDOWN | MOVE_CURSOR if !state.is_null() => {
+        WM_LBUTTONDOWN | MOVE_CURSOR if !state.is_null() && (*state).cutin.is_none() => {
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             if message == MOVE_CURSOR {
                 let direction = match w as u16 {
@@ -804,6 +946,13 @@ pub unsafe fn open(owner: HWND) {
 }
 
 pub unsafe fn translate(window: HWND, message: &MSG) -> bool {
+    if message.message == WM_KEYDOWN
+        && message.wParam == VK_RETURN as usize
+        && GetDlgCtrlID(message.hwnd) == CUTIN_CONTINUE as i32
+    {
+        SendMessageW(window, WM_COMMAND, CUTIN_CONTINUE, 0);
+        return true;
+    }
     if message.message == WM_KEYDOWN && GetDlgCtrlID(message.hwnd) == ANSWER as i32 {
         match message.wParam as u16 {
             VK_RETURN => {
