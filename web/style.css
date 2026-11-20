@@ -1,0 +1,111 @@
+:root {
+  color-scheme: light;
+  font: 16px/1.5 system-ui, "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  background: #f2f6f1;
+  color: #172d26;
+  --green: #176452;
+  --line: #ccdbd1;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+.practice { width: min(100% - 32px, 780px); margin: 34px auto; }
+.masthead { border-top: 4px solid var(--green); padding-top: 16px; }
+h1 { font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1.05; letter-spacing: -.055em; margin: 0; }
+h1 span { color: var(--green); }
+.masthead p { margin: 10px 0 20px; color: #455c51; }
+.toolbar, .actions { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.toolbar { margin-bottom: 12px; }
+.operations { display: flex; min-inline-size: 0; flex-wrap: wrap; padding: 0; margin: 0; gap: 4px; border: 0; }
+.operations legend, .metrics div > span { color: #455c51; font-size: .875rem; }
+.operations legend { margin-bottom: 5px; }
+.operations label { position: relative; cursor: pointer; }
+.operations input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
+.operations label > span { display: block; border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: #fff; font-weight: 650; }
+.operations input:checked + span { background: #d7ebe0; border-color: #84ac9a; color: #114d3d; }
+.operations input:focus-visible + span, button:focus-visible { outline: 3px solid #176452; outline-offset: 2px; }
+.metrics { display: flex; gap: 8px; font-variant-numeric: tabular-nums; }
+.metrics div { display: grid; min-width: 95px; padding: 4px 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.metrics strong { font-size: 1.125rem; }
+.metrics small { color: #455c51; font-size: .875rem; }
+.worksheet { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.board { overflow-x: auto; }
+table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { height: clamp(33px, 5vw, 44px); border: 1px solid var(--line); padding: 0; text-align: center; }
+th { background: #e4efe7; color: #204b3c; }
+th.corner { background: var(--green); color: white; }
+td input { display: block; width: 100%; min-width: 0; height: clamp(32px, 5vw, 43px); outline: 0; border: 0; padding: 0; text-align: center; border-radius: 0; background: transparent; color: inherit; }
+td input:focus { outline: 2px solid var(--green); outline-offset: -2px; background: #edf7f0; }
+td[data-mark="correct"] { background: #e2f2e5; color: #17543d; }
+td[data-mark="incorrect"] { background: #fde8e5; color: #912f25; box-shadow: inset 0 -2px #b45143; }
+.actions { margin-top: 12px; }
+button { cursor: pointer; border: 1px solid #99b7a8; border-radius: 8px; padding: 8px 14px; font-weight: 700; color: var(--green); background: #fff; }
+button:disabled { opacity: .55; cursor: default; }
+#check { background: var(--green); color: #fff; border-color: var(--green); }
+#result { margin: 10px 0 0; min-height: 1.5em; }
+#instructions { color: #455c51; font-size: .875rem; margin: 12px 0 0; }
+@media (max-width: 500px) {
+  .practice { width: calc(100% - 16px); margin: 14px auto; }
+  .worksheet { padding: 5px; }
+  .actions, #result { margin-inline: 4px; }
+}
+
+.practice { width: min(100% - 32px, 1100px); }
+#practice-panel { max-width: 780px; }
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.modes { display: flex; gap: 5px; }
+.modes [aria-pressed="true"], #battle-start, #answer-form button { background: var(--green); color: white; border-color: var(--green); }
+#battle:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); align-items: start; gap: 18px; }
+.opponents, .battle-round { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+.opponents h2 { font-size: 1.125rem; margin: 0 0 12px; }
+.roster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.roster button { overflow: hidden; padding: 3px 2px 5px; font-size: clamp(.72rem, 1.4vw, .9rem); border-color: var(--line); }
+.roster [aria-pressed="true"] { outline: 2px solid var(--green); outline-offset: -2px; background: #d7ebe0; }
+.portrait { display: block; aspect-ratio: 3 / 4; background: #fbf3df url("./opponents.webp") no-repeat; background-size: 400% 300%; background-position: calc(var(--col, 0) * 100% / 3) calc(var(--row, 0) * 50%); border-radius: 5px; }
+.roster .portrait { width: 100%; margin-bottom: 4px; }
+.battle-controls { display: flex; justify-content: space-between; align-items: end; gap: 8px; flex-wrap: wrap; }
+.battle-controls label { display: grid; gap: 3px; font-size: .875rem; }
+.battle-controls select { color: inherit; font: inherit; font-size: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px; }
+.life { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.life label { display: flex; justify-content: space-between; gap: 4px; font-weight: 700; font-size: .875rem; }
+.life progress { display: block; width: 100%; height: 14px; accent-color: var(--green); }
+#opponent-hp { accent-color: #bd593b; }
+.duel { display: flex; gap: 12px; align-items: start; padding: 9px; background: #f7f1e2; border-radius: 10px; margin-bottom: 10px; }
+#opponent-portrait { flex: 0 0 clamp(54px, 9vw, 90px); }
+.turn { flex: 1; min-width: 0; }
+.round-stats { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px; font-size: .875rem; }
+#question { margin: 3px 0 6px; font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 750; }
+#answer-form { display: flex; gap: 5px; }
+#battle-answer { width: min(100%, 6rem); min-width: 0; border: 1px solid #9cb5aa; border-radius: 7px; padding: 4px 7px; }
+#answer-form button { padding: 4px 9px; white-space: nowrap; }
+#battle-note { margin: 4px 0 0; font-size: .875rem; min-height: 1.5em; }
+#battle-grid th, #battle-grid td { height: clamp(25px, 4vw, 35px); }
+#battle-grid .current { background: #fff0bf; box-shadow: inset 0 0 0 2px #926313; }
+#battle-grid .solved { background: #d7ebe0; color: #114d3d; font-weight: 700; }
+@media (max-width: 730px) {
+  #battle:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .arena { grid-row: 1; }
+  .roster { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (max-width: 450px) {
+  .practice { width: calc(100% - 16px); }
+  .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .opponents, .battle-round { padding: 8px; }
+}
+
+.battle-points { margin: 7px 0 0; font-size: .9rem; font-weight: 700; color: #675017; }
+.collection { background: white; border: 1px solid var(--line); border-radius: 16px; padding: clamp(12px, 3vw, 25px); }
+.collection-header { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.collection-header h2 { margin: 0; font-size: clamp(1.35rem, 4vw, 2rem); }
+#collection-summary { margin: 4px 0 0; color: #675017; font-weight: 700; }
+.collection-header label { display: grid; gap: 4px; }
+.collection select { font: inherit; color: inherit; background: white; border: 1px solid #9cb5aa; border-radius: 8px; padding: 6px; }
+#coin-catalog { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; list-style: none; padding: 0; margin: 16px 0 0; }
+#coin-catalog li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 12px; background: #faf7ec; border: 1px solid #e4d7b4; border-radius: 12px; }
+#coin-catalog li.coin-locked { background: #f4f6f3; border-color: var(--line); }
+.math-coin { display: grid; place-items: center; width: 90px; aspect-ratio: 1; border-radius: 50%; background-size: 500% 400%; background-repeat: no-repeat; font-weight: 700; font-size: 1.6rem; }
+.coin-locked .math-coin { color: #557064; background-color: #e3ebe5; border: 2px dashed #97b2a2; }
+.coin-status { position: absolute; top: 8px; right: 10px; font-size: .75rem; color: #455c51; }
+#coin-catalog h3 { margin: 6px 0 0; text-align: center; font-size: 1rem; overflow-wrap: anywhere; }
+#coin-catalog p { margin: 4px 0 0; font-size: .9rem; }
+#coin-catalog .coin-dates { color: #455c51; }
