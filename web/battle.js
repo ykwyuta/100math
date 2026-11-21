@@ -1,3 +1,5 @@
+import { readAxes, revealCell } from "./board.js";
+
 const names = [
   "ミジンコ", "ありんこ", "ネズミ", "うさぎ", "赤ちゃん", "女の子",
   "灘高生", "東大生", "ヒュパティア", "ピタゴラス", "フェルマー", "ラマヌジャン",
@@ -10,6 +12,7 @@ export function setupBattle(wasm, grantReward) {
   const portrait = document.querySelector("#opponent-portrait");
   const opponentName = document.querySelector("#opponent-name");
   const operation = document.querySelector("#battle-operation");
+  const digitsPicker = document.querySelector("#battle-digits");
   const start = document.querySelector("#battle-start");
   const question = document.querySelector("#question");
   const form = document.querySelector("#answer-form");
@@ -110,9 +113,10 @@ export function setupBattle(wasm, grantReward) {
   const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 
   function drawGrid(seed) {
-    const axis = index => String(wasm.make_axis(seed, index)).padStart(10, "0").split("").map(Number);
-    rows = axis(0);
-    cols = axis(1);
+    const digits = Number(digitsPicker.value);
+    [rows, cols] = readAxes(wasm, seed, digits);
+    grid.dataset.digits = digits;
+    grid.closest(".board").scrollLeft = 0;
     squares = [];
     const node = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
     const head = document.createElement("thead");
@@ -153,6 +157,7 @@ export function setupBattle(wasm, grantReward) {
     });
     rowHeaders.forEach((header, index) => header.classList.toggle("axis-active", index === row));
     colHeaders.forEach((header, index) => header.classList.toggle("axis-active", index === col));
+    if (current >= 0) revealCell(squares[current]);
     if (current >= 0) question.textContent = `${rows[row]} ${symbols[roundOperation]} ${cols[col]} = ?`;
   }
 
@@ -255,7 +260,7 @@ export function setupBattle(wasm, grantReward) {
     enableAnswer(false);
     if (started !== undefined) seed = randomSeed();
     roundOperation = Number(operation.value);
-    wasm.battle_start(seed, roundOperation, opponent);
+    wasm.battle_start(seed, roundOperation, opponent, Number(digitsPicker.value));
     drawGrid(seed);
     setProgress(0, 0);
     raceTime.textContent = "00:00";
@@ -281,7 +286,7 @@ export function setupBattle(wasm, grantReward) {
     event.preventDefault();
     if (input.disabled) return;
     const answer = input.value.trim().normalize("NFKC").replace(/−/g, "-");
-    if (!/^-?\d{1,3}$/.test(answer)) {
+    if (!/^-?\d{1,6}$/.test(answer)) {
       note.textContent = "整数を入力してね。";
       input.focus();
       return;
@@ -317,6 +322,7 @@ export function setupBattle(wasm, grantReward) {
   });
 
   operation.addEventListener("change", resetBattle);
+  digitsPicker.addEventListener("change", resetBattle);
   selectOpponent();
   resetBattle();
   return resetBattle;

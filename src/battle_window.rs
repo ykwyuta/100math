@@ -1,8 +1,8 @@
 use crate::collection_window;
-use crate::windows::{game_icon, wide};
+use crate::windows::{fill_digits, game_icon, read_digits, wide};
 use hundred_math::battle::{Battle, Outcome, OPPONENTS};
 use hundred_math::collection::{unlocked_coins, COIN_COUNT};
-use hundred_math::{Operation, SIDE};
+use hundred_math::{Operation, MAX_ANSWER_DIGITS, SIDE};
 use std::ptr::{null, null_mut};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use windows_sys::Win32::Foundation::*;
@@ -26,6 +26,7 @@ const HOME: usize = 8;
 const ENTER_BATTLE: usize = 9;
 const HOME_PRACTICE: usize = 10;
 const CUTIN_CONTINUE: usize = 11;
+const DIGITS: usize = 12;
 const START_ART: &[u8; 564 * 376 * 3] = include_bytes!("../assets/start.bgr");
 const TIMER: usize = 1;
 const MOVE_CURSOR: u32 = WM_APP + 1;
@@ -65,6 +66,7 @@ impl Round {
 struct BattleWindow {
     opponent_picker: HWND,
     operation_picker: HWND,
+    digits_picker: HWND,
     answer: HWND,
     attack: HWND,
     progress: HWND,
@@ -81,6 +83,7 @@ struct BattleWindow {
     home_buttons: [HWND; 2],
     battle_controls: Vec<HWND>,
     title_font: HFONT,
+    grid_font: HFONT,
     collection: HWND,
     cutin_button: HWND,
     cutin: Option<(Cutin, Instant)>,
@@ -147,7 +150,7 @@ impl BattleWindow {
             "",
             WS_TABSTOP | CBS_DROPDOWNLIST as u32,
             OPPONENT,
-            (18, 34, 161, 310),
+            (18, 34, 149, 310),
         );
         for name in OPPONENTS {
             SendMessageW(
@@ -158,13 +161,13 @@ impl BattleWindow {
             );
         }
         SendMessageW(opponent_picker, CB_SETCURSEL, 0, 0);
-        control("STATIC", "計算の種類", 0, 0, (190, 10, 130, 24));
+        control("STATIC", "計算の種類", 0, 0, (176, 10, 125, 24));
         let operation_picker = control(
             "COMBOBOX",
             "",
             WS_TABSTOP | CBS_DROPDOWNLIST as u32,
             OPERATION,
-            (190, 34, 130, 125),
+            (176, 34, 125, 125),
         );
         for name in ["＋ たし算", "− ひき算", "× かけ算"] {
             SendMessageW(
@@ -175,13 +178,22 @@ impl BattleWindow {
             );
         }
         SendMessageW(operation_picker, CB_SETCURSEL, 0, 0);
-        let start = control("BUTTON", "対戦開始", WS_TABSTOP, START, (329, 33, 132, 28));
+        control("STATIC", "出題の桁数", 0, 0, (310, 10, 86, 24));
+        let digits_picker = control(
+            "COMBOBOX",
+            "",
+            WS_TABSTOP | CBS_DROPDOWNLIST as u32,
+            DIGITS,
+            (310, 34, 75, 125),
+        );
+        fill_digits(digits_picker);
+        let start = control("BUTTON", "対戦開始", WS_TABSTOP, START, (394, 33, 102, 28));
         control(
             "BUTTON",
             "れんしゅう",
             WS_TABSTOP,
             PRACTICE,
-            (470, 33, 112, 28),
+            (502, 33, 90, 28),
         );
         let progress = control("STATIC", "", 0, 0, (121, 77, 461, 24));
         let stats = control("STATIC", "", 0, 0, (121, 106, 461, 24));
@@ -193,7 +205,7 @@ impl BattleWindow {
             ANSWER,
             (330, 132, 70, 28),
         );
-        SendMessageW(answer, EM_SETLIMITTEXT, 5, 0);
+        SendMessageW(answer, EM_SETLIMITTEXT, MAX_ANSWER_DIGITS + 1, 0);
         let attack = control("BUTTON", "答える", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
         let note = control("STATIC", "", 0, 0, (121, 164, 461, 25));
         let points_label = control("STATIC", "", 0, 0, (19, 538, 392, 25));
@@ -248,9 +260,26 @@ impl BattleWindow {
             0,
             wide("Yu Gothic UI").as_ptr(),
         );
+        let grid_font = CreateFontW(
+            -13,
+            0,
+            0,
+            0,
+            FW_NORMAL as i32,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET as u32,
+            0,
+            0,
+            0,
+            0,
+            wide("Yu Gothic UI").as_ptr(),
+        );
         let mut state = Box::new(Self {
             opponent_picker,
             operation_picker,
+            digits_picker,
             answer,
             attack,
             progress,
@@ -267,6 +296,7 @@ impl BattleWindow {
             home_buttons,
             battle_controls,
             title_font,
+            grid_font,
             collection,
             cutin_button,
             cutin: None,
@@ -418,7 +448,12 @@ impl BattleWindow {
         let seed = stamp as u32 ^ (stamp >> 32) as u32;
         let operation = SendMessageW(self.operation_picker, CB_GETCURSEL, 0, 0) as u32;
         self.round = Some(Round {
-            game: Battle::new(seed, Operation::from_index(operation), self.opponent),
+            game: Battle::new(
+                seed,
+                Operation::from_index(operation),
+                self.opponent,
+                read_digits(self.digits_picker),
+            ),
             started: Instant::now(),
         });
         self.mood = Mood::Neutral;
@@ -573,7 +608,7 @@ impl BattleWindow {
         if round.game.outcome != Outcome::Playing {
             return;
         }
-        let mut utf16 = [0; 6];
+        let mut utf16 = [0; MAX_ANSWER_DIGITS + 2];
         let size = GetWindowTextW(self.answer, utf16.as_mut_ptr(), utf16.len() as i32) as usize;
         let input: String = String::from_utf16_lossy(&utf16[..size])
             .trim()
@@ -714,7 +749,7 @@ impl BattleWindow {
         self.paint_portrait(dc, box_rect(23, 80, 104, 188));
 
         if let Some(round) = &self.round {
-            let previous_font = SelectObject(dc, self.font);
+            let previous_font = SelectObject(dc, self.grid_font);
             SetBkMode(dc, TRANSPARENT as i32);
             let game = &round.game;
             let selected = (game.outcome == Outcome::Playing)
@@ -831,6 +866,7 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
             let state = Box::from_raw(state);
             DeleteObject(state.font);
             DeleteObject(state.title_font);
+            DeleteObject(state.grid_font);
         }
         WM_PAINT if !state.is_null() => {
             (*state).paint(hwnd);
@@ -846,7 +882,7 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
             // Control updates can synchronously send another window message.
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             match (id, event) {
-                (OPPONENT | OPERATION, CBN_SELCHANGE) => (*state).reset(hwnd),
+                (OPPONENT | OPERATION | DIGITS, CBN_SELCHANGE) => (*state).reset(hwnd),
                 (HOME, BN_CLICKED) => (*state).show_home(hwnd, true),
                 (ENTER_BATTLE, BN_CLICKED) => (*state).show_home(hwnd, false),
                 (CUTIN_CONTINUE, BN_CLICKED) => (*state).finish_cutin(hwnd),

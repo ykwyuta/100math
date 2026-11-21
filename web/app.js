@@ -1,3 +1,4 @@
+import { readAxes } from "./board.js";
 import { setupBattle } from "./battle.js";
 import { setupCollection } from "./collection.js";
 
@@ -5,6 +6,7 @@ const side = 10;
 const symbols = ["+", "−", "×"];
 const table = document.querySelector("#grid");
 const operations = document.querySelector(".operations");
+const digitsPicker = document.querySelector("#practice-digits");
 const newButton = document.querySelector("#new");
 const checkButton = document.querySelector("#check");
 const count = document.querySelector("#count");
@@ -48,9 +50,10 @@ function newBoard(focus) {
     crypto.getRandomValues(random);
   } while (random[0] === previousSeed);
   previousSeed = random[0];
-  const axis = index => String(wasm.make_axis(random[0], index)).padStart(side, "0").split("").map(Number);
-  rows = axis(0);
-  columns = axis(1);
+  const digits = Number(digitsPicker.value);
+  [rows, columns] = readAxes(wasm, random[0], digits);
+  table.dataset.digits = digits;
+  table.closest(".board").scrollLeft = 0;
 
   const head = document.createElement("thead");
   const headerRow = head.insertRow();
@@ -87,7 +90,7 @@ table.addEventListener("input", event => {
   const input = event.target;
   const value = input.value.normalize("NFKC").replace(/−/g, "-");
   const sign = operation === 1 && value.startsWith("-") ? "-" : "";
-  input.value = sign + value.replace(/\D/g, "").slice(0, 2);
+  input.value = sign + value.replace(/\D/g, "").slice(0, 6);
   const filled = cells.filter(hasAnswer).length;
   count.textContent = filled;
   checkButton.disabled = filled === 0;
@@ -131,6 +134,7 @@ operations.addEventListener("change", event => {
   operation = Number(event.target.value);
   newBoard(false);
 });
+digitsPicker.addEventListener("change", () => newBoard(false));
 newButton.addEventListener("click", () => newBoard(true));
 checkButton.addEventListener("click", () => {
   if (graded) return;
@@ -166,6 +170,7 @@ try {
   operation = Number(operations.querySelector("input:checked").value);
   newBoard(false);
   operations.disabled = false;
+  digitsPicker.disabled = false;
   newButton.disabled = false;
   const collection = await setupCollection(wasm);
   const resetBattle = setupBattle(wasm, collection.grant);
@@ -199,6 +204,7 @@ try {
   document.querySelector("#collection-mode").disabled = false;
   document.querySelector("#battle-start").disabled = false;
   document.querySelector("#battle-operation").disabled = false;
+  document.querySelector("#battle-digits").disabled = false;
 } catch (error) {
   console.error(error);
   document.querySelector("#start-status").textContent = "読み込めませんでした。ページを再読み込みしてください。";

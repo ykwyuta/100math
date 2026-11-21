@@ -53,6 +53,13 @@
                 <option value="2">× かけ算</option>
               </select>
             </label>
+            <label>出題の桁数
+              <select id="battle-digits" disabled>
+                <option value="1">1桁</option>
+                <option value="2">2桁</option>
+                <option value="3">3桁</option>
+              </select>
+            </label>
             <button id="battle-start" type="button" disabled>対戦開始</button>
           </div>
           <p id="battle-points" class="battle-points"></p>
@@ -66,7 +73,7 @@
               <div class="round-stats"><span id="expression" aria-hidden="true"></span><time id="race-time">00:00</time></div>
               <p id="question">読み込み中…</p>
               <form id="answer-form">
-                <input id="battle-answer" aria-label="答え" maxlength="5" autocomplete="off" disabled>
+                <input id="battle-answer" aria-label="答え" maxlength="7" autocomplete="off" disabled>
                 <button type="submit" disabled>答える</button>
               </form>
               <p id="battle-note" role="status"></p>
@@ -76,7 +83,9 @@
             <span id="board-progress">0 / 100 マス</span>
             <span id="board-rules">マスを選んで答えよう。先に100マスで勝ち！</span>
           </div>
-          <table aria-describedby="board-rules" id="battle-grid" aria-label="対戦中の100マス計算表"></table>
+          <div class="board">
+            <table aria-describedby="board-rules" id="battle-grid" aria-label="対戦中の100マス計算表"></table>
+          </div>
         </section>
       </div>
       <dialog id="race-cutin" aria-labelledby="cutin-title" aria-describedby="cutin-detail">
@@ -112,6 +121,13 @@
         <label><input type="radio" name="operation" value="1"><span>− ひき算</span></label>
         <label><input type="radio" name="operation" value="2"><span>× かけ算</span></label>
       </fieldset>
+      <label class="digits-picker">出題の桁数
+        <select id="practice-digits" disabled>
+          <option value="1">1桁</option>
+          <option value="2">2桁</option>
+          <option value="3">3桁</option>
+        </select>
+      </label>
       <div class="metrics">
         <div><span>入力済み</span><strong><span id="count">0</span><small> / 100</small></strong></div>
         <div><span>タイム</span><strong id="time">00:00</strong></div>

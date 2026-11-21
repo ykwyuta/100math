@@ -1,4 +1,4 @@
-use hundred_math::{axes, mark, Mark, Operation, CELLS, SIDE};
+use hundred_math::{axes, mark, Digits, Mark, Operation, CELLS, MAX_ANSWER_DIGITS, SIDE};
 use std::ptr::{null, null_mut};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use windows_sys::Win32::Foundation::*;
@@ -16,9 +16,10 @@ pub const OPEN_BATTLE: usize = 104;
 const NEW: usize = 101;
 const CHECK: usize = 102;
 const OPERATION: usize = 103;
+const DIGITS: usize = 105;
 const FIRST_CELL: usize = 200;
 const TIMER: usize = 1;
-const STEP_X: i32 = 50;
+const STEP_X: i32 = 59;
 const STEP_Y: i32 = 33;
 
 pub unsafe fn game_icon(instance: HINSTANCE) -> HICON {
@@ -30,12 +31,24 @@ pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
 
+pub unsafe fn fill_digits(picker: HWND) {
+    for label in Digits::LABELS {
+        SendMessageW(picker, CB_ADDSTRING, 0, wide(label).as_ptr() as LPARAM);
+    }
+    SendMessageW(picker, CB_SETCURSEL, 0, 0);
+}
+
+pub unsafe fn read_digits(picker: HWND) -> Digits {
+    Digits::from_count((SendMessageW(picker, CB_GETCURSEL, 0, 0) + 1) as u32)
+}
+
 struct Window {
     edits: [HWND; CELLS],
     row_labels: [HWND; SIDE],
     column_labels: [HWND; SIDE],
     corner: HWND,
     operation_picker: HWND,
+    digits_picker: HWND,
     metrics: HWND,
     check: HWND,
     result: HWND,
@@ -105,7 +118,15 @@ impl Window {
             0,
             (20, 14, 545, 26),
         );
-        let metrics = control("STATIC", "", 0, 0, (180, 49, 375, 26));
+        let digits_picker = control(
+            "COMBOBOX",
+            "",
+            CBS_DROPDOWNLIST as u32 | WS_TABSTOP,
+            DIGITS,
+            (171, 46, 87, 140),
+        );
+        fill_digits(digits_picker);
+        let metrics = control("STATIC", "", 0, 0, (274, 49, 375, 26));
         let corner = control("STATIC", "", SS_CENTER, 0, (20, 86, 48, 28));
         let column_labels = std::array::from_fn(|column| {
             control(
@@ -113,7 +134,7 @@ impl Window {
                 "",
                 SS_CENTER,
                 0,
-                (70 + column as i32 * STEP_X, 86, 48, 28),
+                (78 + column as i32 * STEP_X, 86, 57, 28),
             )
         });
         let row_labels = std::array::from_fn(|row| {
@@ -133,9 +154,9 @@ impl Window {
                 "",
                 WS_BORDER | WS_TABSTOP | ES_CENTER as u32 | ES_AUTOHSCROLL as u32,
                 FIRST_CELL + index,
-                (70 + col * STEP_X, 117 + row * STEP_Y, 48, 30),
+                (78 + col * STEP_X, 117 + row * STEP_Y, 57, 30),
             );
-            SendMessageW(edit, EM_SETLIMITTEXT, 3, 0);
+            SendMessageW(edit, EM_SETLIMITTEXT, MAX_ANSWER_DIGITS + 1, 0);
             edit
         });
         control("BUTTON", "新しい問題", WS_TABSTOP, NEW, (20, 455, 120, 34));
@@ -161,6 +182,7 @@ impl Window {
             column_labels,
             corner,
             operation_picker,
+            digits_picker,
             metrics,
             check,
             result,
@@ -182,10 +204,11 @@ impl Window {
             .unwrap_or_default()
             .as_nanos();
         let mut seed = stamp as u32 ^ (stamp >> 32) as u32;
-        while axes(seed) == self.numbers {
+        let digits = read_digits(self.digits_picker);
+        while axes(seed, digits) == self.numbers {
             seed = seed.wrapping_add(1);
         }
-        self.numbers = axes(seed);
+        self.numbers = axes(seed, digits);
         SetWindowTextW(self.corner, wide(operation.symbol()).as_ptr());
         for i in 0..SIDE {
             SetWindowTextW(
@@ -210,7 +233,7 @@ impl Window {
     }
 
     unsafe fn answer(edit: HWND) -> Option<i32> {
-        let mut text = [0; 4];
+        let mut text = [0; MAX_ANSWER_DIGITS + 2];
         let size = GetWindowTextW(edit, text.as_mut_ptr(), text.len() as i32) as usize;
         String::from_utf16_lossy(&text[..size])
             .chars()
@@ -345,7 +368,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, message: u32, w: WPARAM, l: LP
                 CHECK if notification == BN_CLICKED && !(*state).graded => {
                     (*state).grade(hwnd);
                 }
-                OPERATION if notification == CBN_SELCHANGE => {
+                OPERATION | DIGITS if notification == CBN_SELCHANGE => {
                     let index = SendMessageW((*state).operation_picker, CB_GETCURSEL, 0, 0);
                     (*state).new_board(hwnd, Operation::from_index(index as u32));
                 }
@@ -402,7 +425,7 @@ pub fn run() {
         let mut rect = RECT {
             left: 0,
             top: 0,
-            right: 590,
+            right: 685,
             bottom: 580,
         };
         AdjustWindowRectEx(&mut rect, style, 0, WS_EX_CONTROLPARENT);
