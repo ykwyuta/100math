@@ -157,3 +157,11 @@ button:disabled { opacity: .55; cursor: default; }
 .cutin-message p { margin: 5px 0 10px; }
 @keyframes cutin-in { from { opacity: 0; transform: translateX(-30px) scale(.94); } }
 @media (prefers-reduced-motion: reduce) { #race-cutin[open] { animation: none; } }
+
+.digits-picker { display: grid; gap: 4px; font-size: .875rem; color: #455c51; }
+.digits-picker select { font: inherit; font-size: 1rem; color: #172d26; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 7px; }
+.board table[data-digits="2"] { min-width: 440px; }
+.board table[data-digits="3"] { min-width: 620px; }
+.board table[data-digits="2"] input, .board table[data-digits="3"] input,
+.board table[data-digits="2"] td button, .board table[data-digits="3"] td button { font-variant-numeric: tabular-nums; }
+.board table:is([data-digits="2"], [data-digits="3"]) tr > :first-child { position: sticky; left: 0; z-index: 1; }

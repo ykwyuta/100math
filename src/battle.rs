@@ -1,5 +1,5 @@
 use crate::collection::POINTS_PER_WIN;
-use crate::{axes, Operation, CELLS, SIDE};
+use crate::{axes, Digits, Operation, CELLS, SIDE};
 
 pub const OPPONENTS: [&str; 12] = [
     "ミジンコ",
@@ -39,11 +39,11 @@ pub struct Battle {
 }
 
 impl Battle {
-    pub fn new(seed: u32, operation: Operation, opponent: usize) -> Self {
+    pub fn new(seed: u32, operation: Operation, opponent: usize, digits: Digits) -> Self {
         let level = opponent.min(OPPONENTS.len() - 1) as u32;
-        let interval = 5_000 - level * 330;
+        let interval = (5_000 - level * 330) * digits.race_factor(operation);
         Self {
-            numbers: axes(seed),
+            numbers: axes(seed, digits),
             operation,
             cell: 0,
             last_lines: 0,
@@ -173,12 +173,13 @@ mod wasm {
     }
 
     #[no_mangle]
-    pub extern "C" fn battle_start(seed: u32, operation: u32, opponent: u32) {
+    pub extern "C" fn battle_start(seed: u32, operation: u32, opponent: u32, digits: u32) {
         BATTLE.with_borrow_mut(|slot| {
             *slot = Some(Battle::new(
                 seed,
                 Operation::from_index(operation),
                 opponent as usize,
+                Digits::from_count(digits),
             ));
         });
     }
@@ -257,7 +258,7 @@ mod tests {
 
     #[test]
     fn win_and_reward_require_all_hundred_answers() {
-        let mut race = Battle::new(42, Operation::Subtract, 0);
+        let mut race = Battle::new(42, Operation::Subtract, 0, Digits::One);
         for solved in 1..CELLS {
             answer(&mut race, solved as u32 * 2_000);
             assert_eq!(race.outcome, Outcome::Playing);
@@ -276,7 +277,7 @@ mod tests {
 
     #[test]
     fn wrong_answer_does_not_fill_square_and_completed_line_does_not_end_race() {
-        let mut race = Battle::new(42, Operation::Add, 0);
+        let mut race = Battle::new(42, Operation::Add, 0, Digits::One);
         assert!(race.select(3));
         assert_eq!(race.submit(99, 0), Some(false));
         assert_eq!(race.solved_count, 0);
@@ -296,8 +297,19 @@ mod tests {
     }
 
     #[test]
+    fn cpu_pace_accounts_for_three_digit_multiplication() {
+        let mut race = Battle::new(42, Operation::Multiply, 0, Digits::Three);
+        race.tick(5_000);
+        assert_eq!(race.opponent_solved, 0);
+        answer(&mut race, 5_000);
+        race.tick(30_000);
+        assert_eq!(race.opponent_solved, 1);
+        assert_eq!(race.solved_count, 1);
+    }
+
+    #[test]
     fn cpu_finishes_only_after_solving_all_hundred_cells() {
-        let mut race = Battle::new(42, Operation::Add, 11);
+        let mut race = Battle::new(42, Operation::Add, 11, Digits::One);
         race.tick(136_999);
         assert_eq!(race.opponent_solved, 99);
         assert_eq!(race.outcome, Outcome::Playing);
