@@ -14,5 +14,5 @@ fn main() {
 
 #[cfg(not(windows))]
 fn main() {
-    eprintln!("Windows では cargo run、Web 版は bash scripts/build-web.sh を使用してください。");
+    eprintln!("Windows では cargo run、Web では bash scripts/build-web.sh を つかってください。");
 }

@@ -144,7 +144,7 @@ impl BattleWindow {
             battle_controls.push(handle);
             handle
         };
-        control("STATIC", "対戦相手", 0, 0, (18, 10, 160, 24));
+        control("STATIC", "たいせんあいて", 0, 0, (18, 10, 160, 24));
         let opponent_picker = control(
             "COMBOBOX",
             "",
@@ -161,7 +161,7 @@ impl BattleWindow {
             );
         }
         SendMessageW(opponent_picker, CB_SETCURSEL, 0, 0);
-        control("STATIC", "計算の種類", 0, 0, (176, 10, 125, 24));
+        control("STATIC", "けいさん", 0, 0, (176, 10, 125, 24));
         let operation_picker = control(
             "COMBOBOX",
             "",
@@ -169,7 +169,7 @@ impl BattleWindow {
             OPERATION,
             (176, 34, 125, 125),
         );
-        for name in ["＋ たし算", "− ひき算", "× かけ算"] {
+        for name in ["＋ たしざん", "− ひきざん", "× かけざん"] {
             SendMessageW(
                 operation_picker,
                 CB_ADDSTRING,
@@ -178,7 +178,7 @@ impl BattleWindow {
             );
         }
         SendMessageW(operation_picker, CB_SETCURSEL, 0, 0);
-        control("STATIC", "出題の桁数", 0, 0, (310, 10, 86, 24));
+        control("STATIC", "つかうかず", 0, 0, (310, 10, 86, 24));
         let digits_picker = control(
             "COMBOBOX",
             "",
@@ -187,7 +187,7 @@ impl BattleWindow {
             (310, 34, 75, 125),
         );
         fill_digits(digits_picker);
-        let start = control("BUTTON", "対戦開始", WS_TABSTOP, START, (394, 33, 102, 28));
+        let start = control("BUTTON", "スタート", WS_TABSTOP, START, (394, 33, 102, 28));
         control(
             "BUTTON",
             "れんしゅう",
@@ -206,12 +206,12 @@ impl BattleWindow {
             (330, 132, 70, 28),
         );
         SendMessageW(answer, EM_SETLIMITTEXT, MAX_ANSWER_DIGITS + 1, 0);
-        let attack = control("BUTTON", "答える", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
+        let attack = control("BUTTON", "こたえる", WS_TABSTOP, ATTACK, (409, 131, 79, 30));
         let note = control("STATIC", "", 0, 0, (121, 164, 461, 25));
         let points_label = control("STATIC", "", 0, 0, (19, 538, 392, 25));
         let collection = control(
             "BUTTON",
-            "コイン図鑑",
+            "コインずかん",
             WS_TABSTOP,
             COLLECTION,
             (450, 532, 130, 29),
@@ -220,7 +220,7 @@ impl BattleWindow {
         let home_buttons = [
             control(
                 "BUTTON",
-                "対戦をはじめる",
+                "たいせんを はじめる",
                 WS_TABSTOP,
                 ENTER_BATTLE,
                 (19, 519, 224, 40),
@@ -344,7 +344,7 @@ impl BattleWindow {
         cover = box_rect(19, 12, 581, 69);
         DrawTextW(
             dc,
-            wide("計算バトルへようこそ！").as_ptr(),
+            wide("けいさんバトルへようこそ！").as_ptr(),
             -1,
             &mut cover,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE,
@@ -353,7 +353,7 @@ impl BattleWindow {
         cover = box_rect(19, 461, 581, 507);
         DrawTextW(
             dc,
-            wide("相手より先に100マスを埋めよう。勝つたびにコインが集まるよ！").as_ptr(),
+            wide("さきに 100マスを うめよう。かつと コインが もらえるよ！").as_ptr(),
             -1,
             &mut cover,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE,
@@ -388,7 +388,7 @@ impl BattleWindow {
         let coins = unlocked_coins(self.points);
         set_text(
             self.points_label,
-            &format!("{} pt    {coins} / {COIN_COUNT} 枚", self.points),
+            &format!("{} pt    {coins} / {COIN_COUNT} まい", self.points),
         );
     }
 
@@ -398,21 +398,21 @@ impl BattleWindow {
             .as_mut()
             .map_or(0, |round| round.game.take_reward());
         if award == 0 {
-            return "勝ち！ よくできました。".to_owned();
+            return "かち！ よくできました。".to_owned();
         }
         let previous = self.points.max(collection_window::load_points());
         self.points = previous.saturating_add(award);
         let saved = collection_window::save_points(self.points);
         self.show_points();
         let before = unlocked_coins(previous);
-        let mut message = format!("勝ち！ +{award} pt");
+        let mut message = format!("かち！ +{award} pt");
         if unlocked_coins(self.points) > before {
             if let Some(name) = collection_window::coin_name(before) {
-                message.push_str(&format!("・{name}のコインを獲得"));
+                message.push_str(&format!("・{name}のコインを ゲット"));
             }
         }
         if !saved {
-            message.push_str("（保存できませんでした）");
+            message.push_str("（セーブできなかったよ）");
         }
         message
     }
@@ -433,8 +433,8 @@ impl BattleWindow {
             .clamp(0, (OPPONENTS.len() - 1) as isize) as usize;
         self.enable_answer(false);
         set_text(self.answer, "");
-        set_text(self.question, "対戦開始を押してね");
-        set_text(self.start, "対戦開始");
+        set_text(self.question, "スタートを おしてね");
+        set_text(self.start, "スタート");
         set_text(self.note, "");
         self.refresh();
         InvalidateRect(hwnd, null(), 1);
@@ -488,9 +488,9 @@ impl BattleWindow {
                 round.started = Instant::now();
             }
             self.enable_answer(true);
-            set_text(self.start, "対戦をやり直す");
+            set_text(self.start, "やりなおす");
             set_text(self.answer, "");
-            set_text(self.note, "クリック・矢印キーでマスを選べます。");
+            set_text(self.note, "クリック・やじるしキーで マスを えらべるよ。");
             SetFocus(self.answer);
         } else {
             KillTimer(hwnd, TIMER);
@@ -516,7 +516,7 @@ impl BattleWindow {
             ),
         );
         let race_status = if self.finish_time.is_some() {
-            "対戦終了"
+            "レースおわり"
         } else {
             "タイム"
         };
@@ -560,12 +560,12 @@ impl BattleWindow {
 
         self.finish_time = Some(round.elapsed());
         self.enable_answer(false);
-        set_text(self.start, "もう一度");
+        set_text(self.start, "もういちど");
         let (message, frame, mood) = if outcome == Outcome::Win {
             (self.win_message(), Cutin::Win, Mood::Worried)
         } else {
             (
-                "相手が先に100マスを埋めました。".to_owned(),
+                "あいてが さきに 100マスを うめたよ。".to_owned(),
                 Cutin::Loss,
                 Mood::Laugh,
             )
@@ -620,7 +620,7 @@ impl BattleWindow {
             })
             .collect();
         let Ok(value) = input.parse::<i32>() else {
-            set_text(self.note, "整数を入力してね。");
+            set_text(self.note, "かずを いれてね。");
             SetFocus(self.answer);
             return;
         };
@@ -629,17 +629,20 @@ impl BattleWindow {
             Some(true) => {
                 let lines = round.game.last_lines;
                 if lines > 0 {
-                    set_text(self.note, &format!("{lines}ライン完成！ ラインアタック！"));
+                    set_text(
+                        self.note,
+                        &format!("{lines}ラインできた！ ラインアタック！"),
+                    );
                     self.react(hwnd, Mood::Worried);
                 } else {
-                    set_text(self.note, "正解！");
+                    set_text(self.note, "せいかい！");
                 }
                 set_text(self.answer, "");
                 SetFocus(self.answer);
                 InvalidateRect(hwnd, null(), 1);
             }
             Some(false) => {
-                set_text(self.note, "おしい！ 同じマスにもう一度答えよう。");
+                set_text(self.note, "おしい！ おなじマスに もういちど こたえよう。");
                 SetFocus(self.answer);
                 SendMessageW(self.answer, EM_SETSEL, 0, -1);
             }
@@ -704,9 +707,9 @@ impl BattleWindow {
         DeleteObject(paper);
         self.paint_portrait(dc, box_rect(45, 172, 207, 388));
         let title = match frame {
-            Cutin::Start => "百マスレース！",
-            Cutin::Win => "100マス達成！",
-            Cutin::Loss => "相手の勝ち！",
+            Cutin::Start => "100マスレース！",
+            Cutin::Win => "100マス できた！",
+            Cutin::Loss => "あいてのかち！",
         };
         let old = SelectObject(dc, self.title_font);
         SetBkMode(dc, TRANSPARENT as i32);
@@ -721,7 +724,9 @@ impl BattleWindow {
         );
         SelectObject(dc, self.font);
         let detail = match (frame, &self.round) {
-            (Cutin::Start, _) => format!("相手は {}。よーい、スタート！", OPPONENTS[self.opponent]),
+            (Cutin::Start, _) => {
+                format!("あいては {}。よーい、スタート！", OPPONENTS[self.opponent])
+            }
             (_, Some(round)) => format!(
                 "あなた {} マス ／ {} {} マス",
                 round.game.solved_count, OPPONENTS[self.opponent], round.game.opponent_solved
@@ -963,7 +968,7 @@ pub unsafe fn open(owner: HWND) {
     let window = CreateWindowExW(
         WS_EX_CONTROLPARENT,
         class.as_ptr(),
-        wide("100マス計算").as_ptr(),
+        wide("100マスけいさん").as_ptr(),
         style,
         owner_rect.left,
         owner_rect.top,

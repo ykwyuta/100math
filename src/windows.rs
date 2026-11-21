@@ -39,7 +39,12 @@ pub unsafe fn fill_digits(picker: HWND) {
 }
 
 pub unsafe fn read_digits(picker: HWND) -> Digits {
-    Digits::from_count((SendMessageW(picker, CB_GETCURSEL, 0, 0) + 1) as u32)
+    let index = SendMessageW(picker, CB_GETCURSEL, 0, 0);
+    if index == 3 {
+        Digits::UpToFive
+    } else {
+        Digits::from_count((index.max(0) + 1) as u32)
+    }
 }
 
 struct Window {
@@ -102,7 +107,7 @@ impl Window {
             OPERATION,
             (20, 46, 138, 140),
         );
-        for label in ["＋ たし算", "− ひき算", "× かけ算"] {
+        for label in ["＋ たしざん", "− ひきざん", "× かけざん"] {
             SendMessageW(
                 operation_picker,
                 CB_ADDSTRING,
@@ -113,7 +118,7 @@ impl Window {
         SendMessageW(operation_picker, CB_SETCURSEL, 0, 0);
         control(
             "STATIC",
-            "左の数と上の数を使って、マスを埋めよう。",
+            "ひだりと うえの かずで マスを うめよう。",
             0,
             0,
             (20, 14, 545, 26),
@@ -159,11 +164,17 @@ impl Window {
             SendMessageW(edit, EM_SETLIMITTEXT, MAX_ANSWER_DIGITS + 1, 0);
             edit
         });
-        control("BUTTON", "新しい問題", WS_TABSTOP, NEW, (20, 455, 120, 34));
-        let check = control("BUTTON", "採点する", WS_TABSTOP, CHECK, (150, 455, 120, 34));
         control(
             "BUTTON",
-            "対戦する",
+            "つくりなおす",
+            WS_TABSTOP,
+            NEW,
+            (20, 455, 120, 34),
+        );
+        let check = control("BUTTON", "さいてん", WS_TABSTOP, CHECK, (150, 455, 120, 34));
+        control(
+            "BUTTON",
+            "たいせんする",
             WS_TABSTOP,
             OPEN_BATTLE,
             (435, 455, 120, 34),
@@ -171,10 +182,10 @@ impl Window {
         let result = control("STATIC", "", 0, 0, (20, 500, 545, 28));
         control(
             "STATIC",
-            "Enter・Tab・矢印キーで移動。ひき算は「左 − 上」です。",
+            "Enter・Tab・やじるしキーで いどう。ひきざんは「ひだり − うえ」。",
             0,
             0,
-            (20, 536, 545, 28),
+            (20, 536, 640, 35),
         );
         Box::new(Self {
             edits,
@@ -227,7 +238,7 @@ impl Window {
         EnableWindow(self.check, 0);
         SetWindowTextW(
             self.result,
-            wide("答えを入力すると、計測が始まります。").as_ptr(),
+            wide("こたえを いれると、タイムが はじまるよ。").as_ptr(),
         );
         self.update_metrics();
     }
@@ -255,7 +266,7 @@ impl Window {
             .count();
         let seconds = self.started.map_or(0, |t| t.elapsed().as_secs());
         let text = format!(
-            "入力済み  {filled} / {CELLS}       タイム  {:02}:{:02}",
+            "こたえた マス  {filled} / {CELLS}       タイム  {:02}:{:02}",
             seconds / 60,
             seconds % 60
         );
@@ -271,7 +282,7 @@ impl Window {
             SetTimer(hwnd, TIMER, 250, None);
             SetWindowTextW(
                 self.result,
-                wide("入力ができたら「採点する」を押してください。").as_ptr(),
+                wide("こたえを いれたら「さいてん」を おしてね。").as_ptr(),
             );
         }
     }
@@ -293,7 +304,8 @@ impl Window {
             SendMessageW(edit, EM_SETREADONLY, 1, 0);
         }
         let blank = CELLS - correct - incorrect;
-        let text = format!("正解 {correct}問 ／ 不正解 {incorrect}問 ／ 未入力 {blank}問");
+        let text =
+            format!("せいかい {correct}もん ／ まちがい {incorrect}もん ／ まだ {blank}もん");
         SetWindowTextW(self.result, wide(&text).as_ptr());
         SetFocus(GetDlgItem(hwnd, NEW as i32));
         EnableWindow(self.check, 0);
@@ -433,7 +445,7 @@ pub fn run() {
             CreateWindowExW(
                 WS_EX_CONTROLPARENT,
                 class.as_ptr(),
-                wide("100マス計算").as_ptr(),
+                wide("100マスけいさん").as_ptr(),
                 style,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
@@ -450,8 +462,8 @@ pub fn run() {
         if hwnd.is_null() {
             MessageBoxW(
                 null_mut(),
-                wide("ウィンドウを作成できませんでした。").as_ptr(),
-                wide("100マス計算").as_ptr(),
+                wide("ウィンドウを ひらけませんでした。").as_ptr(),
+                wide("100マスけいさん").as_ptr(),
                 MB_OK | MB_ICONERROR,
             );
             return;

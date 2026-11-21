@@ -42,7 +42,7 @@ function newBoard(focus) {
   graded = false;
   updateTime();
   count.textContent = "0";
-  result.textContent = "答えを入力すると、計測が始まります。";
+  result.textContent = "こたえを いれると、タイムが はじまるよ。";
   checkButton.disabled = true;
 
   const random = new Uint32Array(1);
@@ -72,7 +72,7 @@ function newBoard(focus) {
       input.inputMode = operation === 1 ? "text" : "numeric";
       input.autocomplete = "off";
       input.spellcheck = false;
-      input.setAttribute("aria-label", `${row + 1}行 ${column + 1}列：${left} ${symbols[operation]} ${top}`);
+      input.setAttribute("aria-label", `${row + 1}ぎょう ${column + 1}れつ：${left} ${symbols[operation]} ${top}`);
       line.insertCell().append(input);
       cells.push(input);
     });
@@ -97,7 +97,7 @@ table.addEventListener("input", event => {
   if (filled > 0 && started === null) {
     started = performance.now();
     timer = setInterval(updateTime, 200);
-    result.textContent = "入力ができたら「採点する」を押してください。";
+    result.textContent = "こたえを いれたら「さいてん」を おしてね。";
   }
 });
 
@@ -157,7 +157,7 @@ checkButton.addEventListener("click", () => {
       input.setAttribute("aria-invalid", "true");
     }
   });
-  result.textContent = `正解 ${correct}問 ／ 不正解 ${incorrect}問 ／ 未入力 ${cells.length - correct - incorrect}問`;
+  result.textContent = `せいかい ${correct}もん ／ まちがい ${incorrect}もん ／ まだ ${cells.length - correct - incorrect}もん`;
   result.tabIndex = -1;
   result.focus();
 });
@@ -207,7 +207,7 @@ try {
   document.querySelector("#battle-digits").disabled = false;
 } catch (error) {
   console.error(error);
-  document.querySelector("#start-status").textContent = "読み込めませんでした。ページを再読み込みしてください。";
-  document.querySelector("#question").textContent = "計算機能を読み込めませんでした。";
-  result.textContent = "計算機能を読み込めませんでした。ページを再読み込みしてください。";
+  document.querySelector("#start-status").textContent = "よみこめなかったよ。ページを ひらきなおしてね。";
+  document.querySelector("#question").textContent = "けいさんの じゅんびが できなかったよ。";
+  result.textContent = "けいさんの じゅんびが できなかったよ。ページを ひらきなおしてね。";
 }

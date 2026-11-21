@@ -1,8 +1,8 @@
 import { readAxes, revealCell } from "./board.js";
 
 const names = [
-  "ミジンコ", "ありんこ", "ネズミ", "うさぎ", "赤ちゃん", "女の子",
-  "灘高生", "東大生", "ヒュパティア", "ピタゴラス", "フェルマー", "ラマヌジャン",
+  "ミジンコ", "ありんこ", "ネズミ", "うさぎ", "あかちゃん", "おんなのこ",
+  "なだこうせい", "とうだいせい", "ヒュパティア", "ピタゴラス", "フェルマー", "ラマヌジャン",
 ];
 const symbols = ["+", "−", "×"];
 
@@ -135,7 +135,7 @@ export function setupBattle(wasm, grantReward) {
         pick.tabIndex = -1;
         pick.disabled = true;
         pick.dataset.cell = index;
-        pick.setAttribute("aria-label", `${r + 1}行 ${c + 1}列、${row} ${symbols[roundOperation]} ${col}`);
+        pick.setAttribute("aria-label", `${r + 1}ぎょう ${c + 1}れつ、${row} ${symbols[roundOperation]} ${col}`);
         square.append(pick);
         squares.push(square);
       });
@@ -208,7 +208,7 @@ export function setupBattle(wasm, grantReward) {
       if (performance.now() >= reactionUntil) react("", "", 0);
       const lines = Math.floor(cpu / 10);
       if (lines > opponentLines) {
-        react("laugh", "相手のラインアタック！");
+        react("laugh", "あいてのラインアタック！");
         opponentLines = lines;
       }
       return status;
@@ -219,12 +219,12 @@ export function setupBattle(wasm, grantReward) {
     highlight(-1);
     for (const square of squares) square.firstElementChild.disabled = true;
     const won = status === 1;
-    const title = won ? "100マス達成！" : `${names[opponent]}の勝ち！`;
+    const title = won ? "100マス できた！" : `${names[opponent]}のかち！`;
     const detail = `あなた ${player} マス ／ ${names[opponent]} ${cpu} マス`;
     const mood = won ? "worried" : "laugh";
-    react(mood, "レース終了");
-    note.textContent = won ? "勝ち！ 100マスを埋めました。" : "相手が先に100マスを埋めました。";
-    start.textContent = "もう一度";
+    react(mood, "レースおわり");
+    note.textContent = won ? "かち！ 100マスを うめたよ。" : "あいてが さきに 100マスを うめたよ。";
+    start.textContent = "もういちど";
     showCutin(title, detail, mood, 2600, () => start.focus());
     if (won) {
       const roundStarted = started;
@@ -247,12 +247,12 @@ export function setupBattle(wasm, grantReward) {
     seed = randomSeed();
     roundOperation = Number(operation.value);
     drawGrid(seed);
-    question.textContent = "対戦開始を押してね";
-    note.textContent = "マスを選んで、相手より先に100マスを埋めよう。";
+    question.textContent = "スタートを おしてね";
+    note.textContent = "マスを えらんで、あいてより さきに 100マスを うめよう。";
     raceTime.textContent = "00:00";
     setProgress(0, 0);
     react("", "", 0);
-    start.textContent = "対戦開始";
+    start.textContent = "スタート";
   }
 
   start.addEventListener("click", () => {
@@ -269,13 +269,13 @@ export function setupBattle(wasm, grantReward) {
     question.textContent = "まもなくスタート";
     note.textContent = "";
     input.value = "";
-    showCutin("百マスレース！", `相手は ${names[opponent]}。よーい、スタート！`, "", 1500, () => {
+    showCutin("100マスレース！", `あいては ${names[opponent]}。よーい、スタート！`, "", 1500, () => {
       started = performance.now();
       enableAnswer(true);
       for (const square of squares) square.firstElementChild.disabled = false;
       input.inputMode = roundOperation === 1 ? "text" : "numeric";
-      note.textContent = "マスをクリック・タップ、または矢印キーで選べます。";
-      start.textContent = "対戦をやり直す";
+      note.textContent = "クリック・タップ・やじるしキーで マスを えらべるよ。";
+      start.textContent = "やりなおす";
       refresh();
       timer = setInterval(refresh, 100);
       input.focus();
@@ -287,7 +287,7 @@ export function setupBattle(wasm, grantReward) {
     if (input.disabled) return;
     const answer = input.value.trim().normalize("NFKC").replace(/−/g, "-");
     if (!/^-?\d{1,6}$/.test(answer)) {
-      note.textContent = "整数を入力してね。";
+      note.textContent = "かずを いれてね。";
       input.focus();
       return;
     }
@@ -298,7 +298,7 @@ export function setupBattle(wasm, grantReward) {
       const square = squares[cell];
       const button = square.firstElementChild;
       button.textContent = Number(answer);
-      button.setAttribute("aria-label", `${button.getAttribute("aria-label")} = ${Number(answer)}、正解済み`);
+      button.setAttribute("aria-label", `${button.getAttribute("aria-label")} = ${Number(answer)}、せいかいずみ`);
       button.disabled = true;
       square.classList.add("solved");
       const row = Math.floor(cell / 10);
@@ -310,12 +310,12 @@ export function setupBattle(wasm, grantReward) {
         colHeaders[col].classList.add("line-complete");
       }
       const lines = value(4);
-      note.textContent = lines ? `${lines}ライン完成！ ラインアタック！` : "正解！";
+      note.textContent = lines ? `${lines}ラインできた！ ラインアタック！` : "せいかい！";
       if (lines) react("worried", "ラインアタック！");
 
       input.value = "";
     } else if (mark === 1) {
-      note.textContent = "おしい！ 同じマスにもう一度答えよう。";
+      note.textContent = "おしい！ おなじマスに もういちど こたえよう。";
       input.select();
     }
     if (refresh() === 0) input.focus();
