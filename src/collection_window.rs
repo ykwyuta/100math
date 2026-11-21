@@ -128,7 +128,7 @@ impl Collection {
 
         let unlocked = unlocked_coins(points);
         let entries: Vec<_> = entries().collect();
-        let summary = format!("{points} ポイント ／ {unlocked} / {} 枚", entries.len());
+        let summary = format!("{points} ポイント ／ {unlocked} / {} まい", entries.len());
         control("STATIC", &summary, 0, 0, (16, 13, 410, 28));
         let list = control(
             "LISTBOX",
@@ -142,7 +142,7 @@ impl Collection {
         let dates = control("STATIC", "", 0, 0, (310, 132, 310, 25));
         let description = control("STATIC", "", 0, 0, (310, 307, 303, 109));
         let source = control("STATIC", "", 0, 0, (310, 270, 303, 26));
-        control("BUTTON", "閉じる", WS_TABSTOP, CLOSE, (500, 431, 112, 30));
+        control("BUTTON", "とじる", WS_TABSTOP, CLOSE, (500, 431, 112, 30));
 
         for (index, entry) in entries.iter().enumerate() {
             let mark = if index < unlocked { "●" } else { "○" };
@@ -174,9 +174,9 @@ impl Collection {
             SetWindowTextW(self.dates, wide(entry.dates).as_ptr());
             SetWindowTextW(self.description, wide(entry.description).as_ptr());
             let status = if self.index < self.unlocked {
-                "獲得済み"
+                "もっている"
             } else {
-                "未獲得"
+                "まだ"
             };
             SetWindowTextW(self.source, wide(status).as_ptr());
         }
@@ -307,7 +307,7 @@ pub unsafe fn open(owner: HWND, points: u32) {
     let window = CreateWindowExW(
         WS_EX_CONTROLPARENT,
         class.as_ptr(),
-        wide("数学者コイン図鑑").as_ptr(),
+        wide("すうがくしゃコインずかん").as_ptr(),
         style,
         anchor.left,
         anchor.top,

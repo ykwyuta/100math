@@ -7,16 +7,18 @@ pub const MAX_ANSWER_DIGITS: usize = 6;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Digits {
+    UpToFive,
     One,
     Two,
     Three,
 }
 
 impl Digits {
-    pub const LABELS: [&'static str; 3] = ["1桁", "2桁", "3桁"];
+    pub const LABELS: [&'static str; 4] = ["1けた", "2けた", "3けた", "0〜5"];
 
     pub fn from_count(count: u32) -> Self {
         match count {
+            0 => Self::UpToFive,
             2 => Self::Two,
             3 => Self::Three,
             _ => Self::One,
@@ -25,6 +27,7 @@ impl Digits {
 
     fn bounds(self) -> (i32, i32) {
         match self {
+            Self::UpToFive => (0, 6),
             Self::One => (0, 10),
             Self::Two => (10, 100),
             Self::Three => (100, 1_000),
@@ -33,7 +36,7 @@ impl Digits {
 
     fn race_factor(self, operation: Operation) -> u32 {
         match (self, operation) {
-            (Self::One, _) => 1,
+            (Self::UpToFive | Self::One, _) => 1,
             (Self::Two, Operation::Multiply) => 3,
             (Self::Two, _) => 2,
             (Self::Three, Operation::Multiply) => 6,
@@ -87,9 +90,14 @@ pub fn axes(seed: u32, digits: Digits) -> [i32; SIDE * 2] {
     let (min, max) = digits.bounds();
     let mut numbers = [0; SIDE * 2];
     for axis in numbers.chunks_exact_mut(SIDE) {
-        if matches!(digits, Digits::One) {
+        if (max - min) as usize <= SIDE {
+            let offset = if matches!(digits, Digits::UpToFive) {
+                next(max - min)
+            } else {
+                0
+            };
             for (index, number) in axis.iter_mut().enumerate() {
-                *number = index as i32;
+                *number = min + (index as i32 + offset) % (max - min);
             }
             for index in (1..SIDE).rev() {
                 axis.swap(index, next((index + 1) as i32) as usize);
@@ -170,6 +178,21 @@ mod tests {
             }
         }
         assert_ne!(axes(1, Digits::One), axes(42, Digits::One));
+    }
+
+    #[test]
+    fn up_to_five_uses_only_the_six_allowed_values() {
+        for seed in [0, 42, u32::MAX] {
+            let board = axes(seed, Digits::UpToFive);
+            for axis in board.chunks_exact(SIDE) {
+                for number in 0..=5 {
+                    assert!(
+                        (1..=2).contains(&axis.iter().filter(|&&value| value == number).count())
+                    );
+                }
+                assert!(axis.iter().all(|&number| (0..=5).contains(&number)));
+            }
+        }
     }
 
     #[test]

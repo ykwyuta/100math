@@ -6,10 +6,10 @@ pub const OPPONENTS: [&str; 12] = [
     "ありんこ",
     "ネズミ",
     "うさぎ",
-    "赤ちゃん",
-    "女の子",
-    "灘高生",
-    "東大生",
+    "あかちゃん",
+    "おんなのこ",
+    "なだこうせい",
+    "とうだいせい",
     "ヒュパティア",
     "ピタゴラス",
     "フェルマー",
@@ -41,7 +41,12 @@ pub struct Battle {
 impl Battle {
     pub fn new(seed: u32, operation: Operation, opponent: usize, digits: Digits) -> Self {
         let level = opponent.min(OPPONENTS.len() - 1) as u32;
-        let interval = (5_000 - level * 330) * digits.race_factor(operation);
+        let base_interval = match level {
+            0 => 7_500,
+            1 => 6_500,
+            _ => 5_000 - level * 330,
+        };
+        let interval = base_interval * digits.race_factor(operation);
         Self {
             numbers: axes(seed, digits),
             operation,
@@ -267,12 +272,12 @@ mod tests {
         assert_eq!(race.take_reward(), 0);
         answer(&mut race, 200_000);
         assert_eq!(race.solved_count, 100);
-        assert_eq!(race.opponent_solved, 40);
+        assert_eq!(race.opponent_solved, 26);
         assert_eq!(race.outcome, Outcome::Win);
         assert_eq!(race.take_reward(), POINTS_PER_WIN);
         assert_eq!(race.take_reward(), 0);
         race.tick(1_000_000);
-        assert_eq!(race.opponent_solved, 40);
+        assert_eq!(race.opponent_solved, 26);
     }
 
     #[test]
@@ -302,9 +307,21 @@ mod tests {
         race.tick(5_000);
         assert_eq!(race.opponent_solved, 0);
         answer(&mut race, 5_000);
-        race.tick(30_000);
+        race.tick(45_000);
         assert_eq!(race.opponent_solved, 1);
         assert_eq!(race.solved_count, 1);
+    }
+
+    #[test]
+    fn beginner_opponents_take_longer_to_finish() {
+        for (opponent, finish) in [(0, 750_000), (1, 650_000)] {
+            let mut race = Battle::new(42, Operation::Add, opponent, Digits::UpToFive);
+            race.tick(finish - 1);
+            assert_eq!(race.opponent_solved, 99);
+            assert_eq!(race.outcome, Outcome::Playing);
+            race.tick(finish);
+            assert_eq!(race.outcome, Outcome::Loss);
+        }
     }
 
     #[test]

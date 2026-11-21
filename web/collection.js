@@ -37,9 +37,9 @@ export async function setupCollection(wasm) {
 
   function render() {
     const unlocked = wasm.coin_count(total);
-    battlePoints.textContent = `${total.toLocaleString("ja-JP")} pt · ${unlocked}/${count} 枚`;
-    summary.textContent = `${total.toLocaleString("ja-JP")} ポイント ／ ${unlocked} / ${count} 枚` +
-      (storageAvailable ? "" : "（この端末では保存できません）");
+    battlePoints.textContent = `${total.toLocaleString("ja-JP")} pt · ${unlocked}/${count} まい`;
+    summary.textContent = `${total.toLocaleString("ja-JP")} ポイント ／ ${unlocked} / ${count} まい` +
+      (storageAvailable ? "" : "（この ききでは セーブできないよ）");
     const era = eras[Number(eraPicker.value)];
     catalog.replaceChildren(...era.entries.map(entry => {
       const card = document.createElement("li");
@@ -62,7 +62,7 @@ export async function setupCollection(wasm) {
         figure.textContent = "？";
         const locked = document.createElement("span");
         locked.className = "coin-status";
-        locked.textContent = "未獲得";
+        locked.textContent = "まだ";
         card.append(locked);
       }
       card.append(figure, title, dates, description);
@@ -91,7 +91,7 @@ export async function setupCollection(wasm) {
       }
       const after = wasm.coin_count(total);
       render();
-      return after > before ? `+${points} pt！ ${entries[before].name}のコインを獲得。` : `+${points} pt！`;
+      return after > before ? `+${points} pt！ ${entries[before].name}のコインを ゲット。` : `+${points} pt！`;
     };
     return navigator.locks ? navigator.locks.request(key, save) : save();
   }
