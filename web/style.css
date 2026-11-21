@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font: 16px/1.5 system-ui, "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  font: 100%/1.5 system-ui, "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
   background: #f2f6f1;
   color: #172d26;
   --green: #176452;
@@ -39,7 +39,7 @@ td input:focus { outline: 2px solid var(--green); outline-offset: -2px; backgrou
 td[data-mark="correct"] { background: #e2f2e5; color: #17543d; }
 td[data-mark="incorrect"] { background: #fde8e5; color: #912f25; box-shadow: inset 0 -2px #b45143; }
 .actions { margin-top: 12px; }
-button { cursor: pointer; border: 1px solid #99b7a8; border-radius: 8px; padding: 8px 14px; font-weight: 700; color: var(--green); background: #fff; }
+button { cursor: pointer; border: 1px solid #99b7a8; border-radius: 8px; padding: 8px 14px; font-weight: 700; color: var(--green); background: #fff; max-inline-size: 100%; overflow-wrap: anywhere; text-wrap: balance; }
 button:disabled { opacity: .55; cursor: default; }
 #check { background: var(--green); color: #fff; border-color: var(--green); }
 #result { margin: 10px 0 0; min-height: 1.5em; }
@@ -53,7 +53,11 @@ button:disabled { opacity: .55; cursor: default; }
 .practice { width: min(100% - 32px, 1100px); }
 #practice-panel { max-width: 780px; }
 .masthead { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-.modes { display: flex; gap: 5px; }
+.modes { display: flex; flex-wrap: wrap; gap: 5px; max-inline-size: 100%; }
+.modes button { flex: 0 0 auto; min-block-size: 44px; }
+@media (max-width: 500px) {
+  .modes button { font-size: clamp(.8125rem, 3.8vw, 1rem); padding-inline: clamp(4px, 1.55vw, 12px); }
+}
 .modes [aria-pressed="true"], #battle-start, #answer-form button { background: var(--green); color: white; border-color: var(--green); }
 #battle:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); align-items: start; gap: 18px; }
 .opponents, .battle-round { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
@@ -85,11 +89,10 @@ button:disabled { opacity: .55; cursor: default; }
 @media (max-width: 730px) {
   #battle:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
   .arena { grid-row: 1; }
-  .roster { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .roster { grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr)); }
 }
 @media (max-width: 450px) {
   .practice { width: calc(100% - 16px); }
-  .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .opponents, .battle-round { padding: 8px; }
 }
 
